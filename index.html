@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Smart Attendance System (Firebase)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; touch-action: manipulation; }
+        #camera-feed { transform: scaleX(-1); }
+        .loader { border: 8px solid #f3f3f3; border-radius: 50%; border-top: 8px solid #3498db; width: 60px; height: 60px; animation: spin 1s linear infinite; }
+        .small-loader { border: 4px solid #f3f3f3; border-radius: 50%; border-top: 4px solid #3498db; width: 20px; height: 20px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .spin-anim { animation: spin 1s linear infinite; }
+        
+        /* Report Table Styles */
+        #report-table { border-collapse: collapse; width: 100%; font-size: 12px; }
+        #report-table th, #report-table td { border: 1px solid #ddd; padding: 6px; text-align: center; vertical-align: top; }
+        #report-table th { background-color: #f2f2f2; position: sticky; top: 0; z-index: 10; }
+        .status-P { background-color: #c8e6c9; }
+        .status-L { background-color: #fff9c4; }
+        .status-A { background-color: #ffcdd2; }
+        .status-PA { background-color: #b3e5fc; }
+        .status-WO { background-color: #e8eaed; color: #555; }
+        .status-text { font-weight: bold; font-size: 1.1em; }
+        .time-text { font-size: 0.75rem; color: #555; margin-top: 4px; }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-4xl mx-auto bg-white rounded-3xl shadow-2xl p-6 space-y-6">
+        <h1 id="main-title" class="text-2xl font-bold text-center text-gray-800">Employee Attendance</h1>
+
+        <!-- ==================== VIEW 1: LOGIN ==================== -->
+        <div id="login-section" class="space-y-5 max-w-md mx-auto">
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Aapka Employee ID daalein:</label>
+                <input type="text" id="employeeId" class="block w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 text-lg transition-all" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+            </div>
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1">Aapka Verification Pin:</label>
+                <input type="password" id="employeePin" class="block w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl shadow-sm focus:ring-2 focus:ring-indigo-500 text-lg transition-all" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+            </div>
+            <button type="button" id="verify-id-btn" class="w-full bg-indigo-600 text-white py-4 px-4 rounded-xl hover:bg-indigo-700 font-bold text-lg shadow-lg transition-all">ID Check Karein</button>
+            <div class="text-center">
+                <a href="#" id="show-forgot-btn" class="text-sm text-indigo-600 hover:text-indigo-800 font-semibold transition-all">Forgot PIN?</a>
+            </div>
+        </div>
+
+        <!-- ==================== VIEW 2: FORGOT PIN ==================== -->
+        <div id="forgot-pin-section" class="hidden space-y-5 max-w-md mx-auto">
+            <h2 class="text-xl font-bold text-center text-gray-700">Reset Password (PIN)</h2>
+            <div id="otp-request-box" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 mb-1">Employee ID:</label>
+                    <input type="text" id="forgot-employeeId" class="block w-full px-4 py-3 bg-gray-50 border rounded-xl" inputmode="numeric" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                </div>
+                <button type="button" id="send-otp-btn" class="w-full bg-yellow-500 text-white py-4 px-4 rounded-xl hover:bg-yellow-600 font-bold shadow-md transition-all">Send OTP on Email</button>
+                <p class="text-xs text-gray-500 text-center">Note: OTP features require Google Apps Script Webhook.</p>
+            </div>
+            <button type="button" id="back-to-login-btn" class="w-full bg-gray-200 text-gray-700 py-3 px-4 rounded-xl font-bold mt-2">Wapas Login Par Jayein</button>
+        </div>
+
+        <!-- ==================== VIEW 3: CONFIRMATION ==================== -->
+        <div id="confirmation-section" class="hidden text-center space-y-5 max-w-md mx-auto">
+            <div class="p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
+                <p class="text-sm text-gray-600">Kya aap wahi hain?</p>
+                <p class="text-2xl font-bold text-indigo-700 mt-1" id="employee-name"></p>
+            </div>
+            <div class="space-y-3">
+                <button type="button" id="proceed-btn" class="w-full bg-green-500 text-white py-4 px-4 rounded-xl hover:bg-green-600 font-bold text-lg shadow-lg">Haan, Aage Badhein</button>
+                <button type="button" id="view-report-direct-btn" class="w-full bg-blue-500 text-white py-4 px-4 rounded-xl hover:bg-blue-600 font-bold text-lg shadow-lg">Mera Report Dekhein</button>
+                <button type="button" id="back-btn" class="w-full bg-gray-200 text-gray-700 py-4 px-4 rounded-xl hover:bg-gray-300 font-bold text-lg">Nahi, Logout Jayein</button>
+            </div>
+        </div>
+
+        <!-- ==================== VIEW 4: ATTENDANCE PUNCH ==================== -->
+        <div id="attendance-section" class="hidden space-y-5 max-w-md mx-auto">
+            <div class="relative bg-gray-900 rounded-2xl overflow-hidden w-full aspect-[3/4] shadow-inner ring-4 ring-gray-100">
+                <video id="camera-feed" playsinline autoplay class="w-full h-full object-cover"></video>
+                <canvas id="photo-canvas" class="hidden"></canvas>
+            </div>
+            
+            <div class="bg-indigo-50 p-3 rounded-xl border border-indigo-100 flex flex-col justify-center min-h-[4rem] relative">
+                <div class="flex items-center justify-between w-full">
+                    <p id="location-info" class="text-xs font-medium text-left text-indigo-800 leading-tight flex-1"></p>
+                    <button type="button" id="refresh-location-btn" class="ml-2 p-2 bg-indigo-200 rounded-full hover:bg-indigo-300 transition-colors">
+                        <svg id="refresh-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-indigo-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                    </button>
+                </div>
+                <p id="accuracy-warning" class="text-[10px] text-red-500 font-bold mt-1 hidden">GPS weak hai. Kripya wait karein ya bahar aayein.</p>
+            </div>
+
+            <div id="daily-complete-msg" class="hidden bg-green-100 text-green-800 p-3 rounded-lg text-center text-sm font-bold border border-green-200">
+                ✅ Aapki aaj ki attendance poori ho chuki hai.
+            </div>
+
+            <div id="punch-buttons-container" class="grid grid-cols-2 gap-4">
+                <button type="button" id="punch-in-btn" class="bg-green-500 text-white py-4 px-2 rounded-xl hover:bg-green-600 font-bold text-lg shadow-lg disabled:bg-gray-400 disabled:opacity-50">Punch In</button>
+                <button type="button" id="punch-out-btn" class="bg-red-500 text-white py-4 px-2 rounded-xl hover:bg-red-600 font-bold text-lg shadow-lg disabled:bg-gray-400 disabled:opacity-50">Punch Out</button>
+            </div>
+            <div class="flex justify-between mt-4">
+                <button id="cancel-punch-btn" class="text-sm text-gray-500 hover:text-gray-800 font-semibold transition-all">Cancel & Back</button>
+            </div>
+        </div>
+
+        <!-- ==================== VIEW 5: REPORT ==================== -->
+        <div id="report-section" class="hidden w-full">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 items-end">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Start Date</label>
+                    <input type="date" id="startDate" class="mt-1 block w-full border border-gray-300 rounded-md p-2">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">End Date</label>
+                    <input type="date" id="endDate" class="mt-1 block w-full border border-gray-300 rounded-md p-2">
+                </div>
+                <button id="fetchReportBtn" class="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 font-semibold h-10 flex items-center justify-center">
+                    <span id="btn-text">Fetch My Report</span>
+                    <div id="btn-loader" class="small-loader hidden"></div>
+                </button>
+            </div>
+            
+            <div id="duty-timings" class="mb-4 p-4 bg-gray-50 rounded-md text-sm leading-relaxed border border-gray-200"></div>
+
+            <div id="report-container" class="overflow-x-auto bg-white rounded-lg border pb-2">
+                <p class="text-center text-gray-500 py-4">Please select date range and click "Fetch My Report".</p>
+            </div>
+            
+            <div class="mt-6 text-center">
+                 <button id="back-from-report-btn" class="bg-gray-200 text-gray-700 py-2 px-6 rounded-xl hover:bg-gray-300 font-bold transition-all">← Back to Menu</button>
+            </div>
+        </div>
+
+        <!-- ==================== OVERLAYS ==================== -->
+        <div id="loader-overlay" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex-col items-center justify-center z-50 backdrop-blur-sm">
+            <div class="loader"></div>
+            <p id="loader-message" class="text-white mt-5 text-lg font-semibold tracking-wide"></p>
+        </div>
+        
+        <div id="message-box" class="hidden fixed top-5 left-1/2 -translate-x-1/2 bg-gray-800 text-white py-3 px-6 rounded-full shadow-2xl z-50 w-11/12 max-w-sm text-center font-medium transition-all transform duration-300">
+            <p id="message-text"></p>
+        </div>
+    </div>
+
+    <!-- Firebase SDK Modules -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+        import { getDatabase, ref, get, set, child } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+        import { getStorage, ref as storageRef, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
+
+        // =======================================================================
+        // FIREBASE CONFIGURATION (REPLACE WITH YOUR FIREBASE CONFIG)
+        // =======================================================================
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY", // Kripya Firebase console se apna API key (Web API Key) yahan daalein
+            authDomain: "attandancemasha.firebaseapp.com",
+            databaseURL: "https://attandancemasha-default-rtdb.firebaseio.com/",
+            projectId: "attandancemasha",
+            storageBucket: "attandancemasha.appspot.com",
+            messagingSenderId: "637250063228", // Aapka Project Number update ho gaya hai
+            appId: "YOUR_APP_ID" // Firebase console se App ID yahan daalein (starts with 1:637250...)
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+        const storage = getStorage(app);
+
+        // Keep this ONLY if you still want to send OTP emails via Apps Script
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw_HQ1QNsy1QgmjhGNM_ViPcugNoZx53RIc2H9Kq1MBaYVJ0NcmsSQZV8kL248tJS8b/exec"; 
+
+        // State Variables
+        let currentEmployee = null;
+        let currentStream;
+        let currentCoordinates = null;
+        let attendanceStatus = "None";
+        let gpsWatchId = null; 
+
+        // DOM Elements
+        const views = {
+            login: document.getElementById('login-section'),
+            forgot: document.getElementById('forgot-pin-section'),
+            confirm: document.getElementById('confirmation-section'),
+            attendance: document.getElementById('attendance-section'),
+            report: document.getElementById('report-section')
+        };
+        const title = document.getElementById('main-title');
+
+        // Functions to switch views
+        function showView(viewName, titleText = "Employee Attendance") {
+            Object.values(views).forEach(v => v.classList.add('hidden'));
+            views[viewName].classList.remove('hidden');
+            title.textContent = titleText;
+        }
+
+        // --- Event Listeners ---
+        document.getElementById('verify-id-btn').addEventListener('click', verifyEmployee);
+        document.getElementById('proceed-btn').addEventListener('click', initCameraAndLocation);
+        document.getElementById('back-btn').addEventListener('click', () => { stopCamera(); showView('login'); currentEmployee = null; });
+        document.getElementById('cancel-punch-btn').addEventListener('click', () => { stopCamera(); showView('confirm', 'Confirm Identity'); });
+        document.getElementById('view-report-direct-btn').addEventListener('click', openReportView);
+        document.getElementById('back-from-report-btn').addEventListener('click', () => showView('confirm', 'Confirm Identity'));
+        
+        document.getElementById('punch-in-btn').addEventListener('click', () => handlePunch('In'));
+        document.getElementById('punch-out-btn').addEventListener('click', () => handlePunch('Out'));
+        document.getElementById('refresh-location-btn').addEventListener('click', startLocationTracking);
+        
+        document.getElementById('show-forgot-btn').addEventListener('click', () => showView('forgot', 'Reset PIN'));
+        document.getElementById('back-to-login-btn').addEventListener('click', () => showView('login'));
+        document.getElementById('send-otp-btn').addEventListener('click', sendOtpFallback);
+        document.getElementById('fetchReportBtn').addEventListener('click', fetchMyReport);
+
+        // Setup Dates
+        const todayStr = new Date().toISOString().split('T')[0];
+        document.getElementById('startDate').value = todayStr;
+        document.getElementById('endDate').value = todayStr;
+
+        // =======================================================================
+        // CORE FUNCTIONS (Direct Firebase Access)
+        // =======================================================================
+        
+        async function verifyEmployee() {
+            const empId = document.getElementById('employeeId').value.trim();
+            const pin = document.getElementById('employeePin').value.trim();
+            
+            if (!empId || !pin) return showMessage('Kripya Employee ID aur PIN dono daalein.', 'error');
+            
+            showLoader('Firebase se ID verify kiya ja raha hai...');
+            try {
+                const dbRef = ref(database);
+                const empSnapshot = await get(child(dbRef, `employees/${empId}`));
+                
+                if (!empSnapshot.exists()) {
+                    throw new Error("Aapka Employee ID database mein nahi mila.");
+                }
+
+                const empData = empSnapshot.val();
+                
+                if (empData.pin.toString() !== pin) {
+                    throw new Error("Aapka PIN galat hai. Kripya dobara check karein.");
+                }
+                
+                if (empData.status && empData.status.toLowerCase() === 'inactive') {
+                     throw new Error("Aapka account inactive hai. HR se sampark karein.");
+                }
+
+                // Check today's punch status
+                const today = new Date().toISOString().split('T')[0];
+                const punchSnapshot = await get(child(dbRef, `attendance/${empId}/${today}`));
+                
+                attendanceStatus = "None";
+                if (punchSnapshot.exists()) {
+                    const punches = punchSnapshot.val();
+                    if (punches['In'] && !punches['Out']) attendanceStatus = "PunchedIn";
+                    if (punches['In'] && punches['Out']) attendanceStatus = "PunchedOut";
+                }
+
+                currentEmployee = { id: empId, ...empData };
+                document.getElementById('employee-name').textContent = currentEmployee.name;
+                
+                showView('confirm', 'Confirm Identity');
+            } catch (error) {
+                showMessage(error.message, 'error');
+            } finally {
+                hideLoader();
+            }
+        }
+
+        async function initCameraAndLocation() {
+            showLoader('Camera shuru ho raha hai...');
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+                document.getElementById('camera-feed').srcObject = stream;
+                currentStream = stream;
+                
+                showView('attendance', 'Mark Attendance');
+                startLocationTracking();
+            } catch (err) {
+                showMessage('Camera access nahi ho paaya. Kripya permission check karein.', 'error');
+                showView('confirm');
+            } finally {
+                hideLoader();
+            }
+        }
+
+        function startLocationTracking() {
+            enablePunchButtons(false, false); 
+            const locationInfo = document.getElementById('location-info');
+            const accuracyWarning = document.getElementById('accuracy-warning');
+            const refreshIcon = document.getElementById('refresh-icon');
+            
+            locationInfo.innerHTML = 'Hardware GPS se location li ja rahi hai...';
+            accuracyWarning.classList.add('hidden');
+            refreshIcon.classList.add('spin-anim');
+
+            if (gpsWatchId) navigator.geolocation.clearWatch(gpsWatchId);
+            
+            gpsWatchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    refreshIcon.classList.remove('spin-anim');
+                    currentCoordinates = position.coords;
+                    const accuracy = Math.round(position.coords.accuracy);
+                    
+                    let accuracyHTML = '';
+                    if (accuracy > 50) {
+                        accuracyHTML = `<span class="text-red-600 font-bold">(Accuracy: ${accuracy}m - Weak)</span>`;
+                        accuracyWarning.classList.remove('hidden');
+                    } else if (accuracy > 15) {
+                        accuracyHTML = `<span class="text-yellow-600 font-bold">(Accuracy: ${accuracy}m - Good)</span>`;
+                        accuracyWarning.classList.add('hidden');
+                    } else {
+                        accuracyHTML = `<span class="text-green-600 font-bold">(Accuracy: ${accuracy}m - Perfect)</span>`;
+                        accuracyWarning.classList.add('hidden');
+                    }
+                    
+                    locationInfo.innerHTML = `Location: ${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)} <br>${accuracyHTML}`;
+                    
+                    const punchContainer = document.getElementById('punch-buttons-container');
+                    const dailyMsg = document.getElementById('daily-complete-msg');
+
+                    if (attendanceStatus === "None") {
+                        punchContainer.classList.remove('hidden');
+                        dailyMsg.classList.add('hidden');
+                        enablePunchButtons(true, false);
+                    } else if (attendanceStatus === "PunchedIn") {
+                        punchContainer.classList.remove('hidden');
+                        dailyMsg.classList.add('hidden');
+                        enablePunchButtons(false, true);
+                    } else if (attendanceStatus === "PunchedOut") {
+                        punchContainer.classList.add('hidden');
+                        dailyMsg.classList.remove('hidden');
+                        enablePunchButtons(false, false);
+                    }
+                },
+                (error) => {
+                    refreshIcon.classList.remove('spin-anim');
+                    locationInfo.textContent = 'Location access fail. GPS ON karein aur Refresh dabayein.';
+                    showMessage('Location permission aur GPS ON hona zaruri hai.', 'error');
+                },
+                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 } 
+            );
+        }
+
+        async function handlePunch(punchType) {
+            showLoader(`Punch ${punchType} ho raha hai... Kripya pratiksha karein.`);
+            enablePunchButtons(false, false);
+            
+            try {
+                // 1. Capture Photo
+                const video = document.getElementById('camera-feed');
+                const canvas = document.getElementById('photo-canvas');
+                const context = canvas.getContext('2d');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                context.translate(canvas.width, 0);
+                context.scale(-1, 1);
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const photoDataUrl = canvas.toDataURL('image/jpeg', 0.6); // Compress slightly
+                
+                const timestampIso = new Date().toISOString();
+                const today = timestampIso.split('T')[0];
+                const lat = currentCoordinates ? currentCoordinates.latitude : 'N/A';
+                const lng = currentCoordinates ? currentCoordinates.longitude : 'N/A';
+
+                // 2. Fetch Text Address from Coordinates (Reverse Geocoding)
+                showLoader('Text Address nikala ja raha hai...');
+                let textAddress = "Address Not Found";
+                
+                if (lat !== 'N/A' && lng !== 'N/A') {
+                    try {
+                        // Nominatim OSM API is free and doesn't require keys.
+                        const geoResponse = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
+                        if(geoResponse.ok) {
+                            const geoData = await geoResponse.json();
+                            textAddress = geoData.display_name || "Address Not Found";
+                        }
+                    } catch (geoError) {
+                        console.error("Geocoding failed:", geoError);
+                        textAddress = "Address Fetch Error";
+                    }
+                }
+
+                // 3. Upload to Firebase Storage
+                showLoader('Photo upload ho rahi hai...');
+                const imgRef = storageRef(storage, `attendance_selfies/${currentEmployee.id}/${today}_${punchType}.jpg`);
+                await uploadString(imgRef, photoDataUrl, 'data_url');
+                const photoUrl = await getDownloadURL(imgRef);
+
+                // 4. Write to Realtime Database
+                showLoader('Database mein save ho raha hai...');
+                const punchRef = ref(database, `attendance/${currentEmployee.id}/${today}/${punchType}`);
+                await set(punchRef, {
+                    timestamp: timestampIso,
+                    latitude: lat,
+                    longitude: lng,
+                    address: textAddress,      // <-- ADDED THIS: Ye Google sheets me regex match ke kaam aayega
+                    photoUrl: photoUrl,
+                    location: currentEmployee.location || 'N/A',
+                    department: currentEmployee.department || 'N/A'
+                });
+
+                showMessage(`Aapka Punch ${punchType} safaltapoorvak record ho gaya!`, 'success');
+                stopCamera();
+                
+                // Update local status and reset
+                attendanceStatus = punchType === 'In' ? "PunchedIn" : "PunchedOut";
+                document.getElementById('employeeId').value = '';
+                document.getElementById('employeePin').value = '';
+                showView('login');
+
+            } catch (error) {
+                showMessage('Error: ' + error.message, 'error');
+                if (attendanceStatus === "None") enablePunchButtons(true, false);
+                else if (attendanceStatus === "PunchedIn") enablePunchButtons(false, true);
+            } finally {
+                hideLoader();
+            }
+        }
+
+        // =======================================================================
+        // REPORTING LOGIC (Shifted from code.gs to Client Side JS)
+        // =======================================================================
+        function openReportView() {
+            showView('report', 'My Attendance Report');
+            fetchMyReport();
+        }
+
+        async function fetchMyReport() {
+            const startDateStr = document.getElementById('startDate').value;
+            const endDateStr = document.getElementById('endDate').value;
+            if (!startDateStr || !endDateStr) return alert('Dates select karein.');
+
+            toggleBtnLoader(true);
+            try {
+                // Fetch Employee's Attendance from Firebase
+                const dbRef = ref(database);
+                const snapshot = await get(child(dbRef, `attendance/${currentEmployee.id}`));
+                const allPunches = snapshot.exists() ? snapshot.val() : {};
+
+                const reportData = calculateReportData(currentEmployee, allPunches, startDateStr, endDateStr);
+                renderReport(reportData);
+            } catch (error) {
+                document.getElementById('report-container').innerHTML = `<p class="text-center text-red-500 font-bold">Error: ${error.message}</p>`;
+            } finally {
+                toggleBtnLoader(false);
+            }
+        }
+
+        function calculateReportData(emp, allPunches, startStr, endStr) {
+            const startDate = new Date(startStr);
+            const endDate = new Date(endStr);
+            const dateHeaders = [];
+            const statuses = [];
+            
+            const daysInMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0).getDate();
+            let totalSaturdays = 0;
+            let summary = { P: 0, PA: 0, A: 0, OT: 0, WO: 0, L: 0, TotDays: 0, LateDec: 0, NetDays: 0, BaseSalary: emp.salary || 0, EarnedSalary: 0 };
+
+            for (let dt = new Date(startDate); dt <= endDate; dt.setDate(dt.getDate() + 1)) {
+                const dateKey = dt.toISOString().split('T')[0];
+                dateHeaders.push(dt.getDate());
+                
+                const dayOfWeek = dt.getDay();
+                if (dayOfWeek === 6) totalSaturdays++;
+
+                let dayStatus = { status: 'A', inTime: null, outTime: null };
+                const dayPunches = allPunches[dateKey];
+
+                if (dayPunches) {
+                    const inPunch = dayPunches['In'];
+                    const outPunch = dayPunches['Out'];
+
+                    dayStatus.inTime = inPunch ? new Date(inPunch.timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : null;
+                    dayStatus.outTime = outPunch ? new Date(outPunch.timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : null;
+
+                    if (!inPunch && !outPunch) {
+                        dayStatus.status = 'A';
+                    } else if ((inPunch && !outPunch) || (!inPunch && outPunch)) {
+                        dayStatus.status = 'P/A';
+                    } else {
+                        const inDate = new Date(inPunch.timestamp);
+                        const outDate = new Date(outPunch.timestamp);
+                        const hoursWorked = (outDate - inDate) / (1000 * 60 * 60);
+
+                        if (hoursWorked < 4) {
+                            dayStatus.status = 'A';
+                        } else {
+                            const dutyOnTimeParts = (emp.startTime || '00:00').split(':');
+                            const dutyOffTimeParts = (emp.endTime || '00:00').split(':');
+                            
+                            const dutyOnDate = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(), parseInt(dutyOnTimeParts[0]), parseInt(dutyOnTimeParts[1]), 0);
+                            let dutyOffDate = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(), parseInt(dutyOffTimeParts[0]), parseInt(dutyOffTimeParts[1]), 0);
+                            if (dutyOffDate < dutyOnDate) dutyOffDate.setDate(dutyOffDate.getDate() + 1);
+
+                            const lateMarkTime = new Date(dutyOnDate.getTime() + (emp.allowanceIn || 0) * 60000);
+                            const earlyLeaveTime = new Date(dutyOffDate.getTime() - (emp.allowanceOut || 0) * 60000);
+                            const halfDayCutoff = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(), 11, 0, 0);
+
+                            if (inDate >= halfDayCutoff) dayStatus.status = 'P/A';
+                            else if (outDate < earlyLeaveTime) dayStatus.status = 'P/A';
+                            else if (inDate > lateMarkTime) dayStatus.status = 'L';
+                            else dayStatus.status = 'P';
+                        }
+                    }
+                }
+
+                if (dayOfWeek === 6) {
+                    if (dayStatus.status === 'A') dayStatus.status = 'W/O';
+                    else {
+                        if (dayStatus.status === 'P') summary.OT += 1;
+                        else if (dayStatus.status === 'P/A') summary.OT += 0.5;
+                    }
+                }
+
+                if (dayStatus.status === 'P') summary.P += 1;
+                else if (dayStatus.status === 'P/A') summary.PA += 1;
+                else if (dayStatus.status === 'A') summary.A += 1;
+                else if (dayStatus.status === 'L') summary.L += 1;
+
+                statuses.push(dayStatus);
+            }
+
+            // WO Logic
+            let presentDaysForWO = summary.P + summary.PA + summary.L;
+            if (presentDaysForWO >= 21) summary.WO = totalSaturdays;
+            else if (presentDaysForWO >= 15) summary.WO = Math.max(0, totalSaturdays - 1);
+            else if (presentDaysForWO >= 10) summary.WO = Math.min(totalSaturdays, 2);
+            else if (presentDaysForWO >= 5) summary.WO = Math.min(totalSaturdays, 1);
+            else summary.WO = 0;
+
+            summary.TotDays = summary.P + (summary.PA * 0.5) + summary.OT + summary.L + summary.WO;
+            summary.LateDec = Math.floor(summary.L / 3) * 0.5;
+            summary.NetDays = summary.TotDays - summary.LateDec;
+            summary.EarnedSalary = Math.round((summary.BaseSalary / daysInMonth) * summary.NetDays);
+
+            return { headers: dateHeaders, statuses, summary };
+        }
+
+        function renderReport(data) {
+            const dutyDiv = document.getElementById('duty-timings');
+            dutyDiv.innerHTML = `
+                <p><strong>Name:</strong> ${currentEmployee.name} | <strong>Location:</strong> ${currentEmployee.location || 'N/A'}</p>
+                <p><strong>Duty On:</strong> ${currentEmployee.startTime || 'N/A'} (Grace: ${currentEmployee.allowanceIn || 0}m) | <strong>Duty Off:</strong> ${currentEmployee.endTime || 'N/A'} (Grace: ${currentEmployee.allowanceOut || 0}m)</p>
+            `;
+
+            let tableHTML = '<table id="report-table" class="mt-4 shadow-sm w-full"><thead><tr>';
+            data.headers.forEach(day => { tableHTML += `<th>${day}</th>`; });
+            tableHTML += '<th>Total Days</th><th>Net Days</th><th>Earned Salary</th></tr></thead><tbody><tr>';
+
+            data.statuses.forEach(dayData => {
+                const sClass = dayData.status === 'P/A' ? 'status-PA' : (dayData.status === 'W/O' ? 'status-WO' : `status-${dayData.status}`);
+                tableHTML += `<td class="${sClass}"><div class="status-text">${dayData.status}</div>`;
+                if (dayData.inTime) tableHTML += `<div class="time-text">In: ${dayData.inTime}<br>Out: ${dayData.outTime || '--:--'}</div>`;
+                tableHTML += `</td>`;
+            });
+
+            tableHTML += `<td class="font-bold bg-gray-50">${data.summary.TotDays}</td>
+                          <td class="font-bold bg-gray-100">${data.summary.NetDays}</td>
+                          <td class="font-bold text-green-700 bg-green-50">₹${data.summary.EarnedSalary}</td></tr></tbody></table>`;
+            
+            document.getElementById('report-container').innerHTML = tableHTML;
+        }
+
+        // =======================================================================
+        // UTILITY FUNCTIONS
+        // =======================================================================
+        
+        async function sendOtpFallback() {
+            // Because Client-side JS cannot send emails natively, we keep a tiny 
+            // fallback to the old Google Sheet URL JUST for sending the OTP email.
+            const empId = document.getElementById('forgot-employeeId').value.trim();
+            if(!empId) return showMessage('Employee ID daalna zaruri hai.', 'error');
+            
+            showLoader('OTP bheja ja raha hai via Apps Script...');
+            try {
+                const response = await fetch(`${GOOGLE_SCRIPT_URL}?action=sendOtp&empId=${empId}`);
+                const result = await response.json();
+                showMessage(result.message, result.status);
+            } catch (error) {
+                showMessage('Network error. Apps script link verify karein.', 'error');
+            } finally {
+                hideLoader();
+            }
+        }
+
+        function stopCamera() {
+            if (currentStream) currentStream.getTracks().forEach(track => track.stop());
+            if (gpsWatchId) { navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
+        }
+        function showLoader(msg) { document.getElementById('loader-message').textContent = msg; document.getElementById('loader-overlay').classList.replace('hidden', 'flex'); }
+        function hideLoader() { document.getElementById('loader-overlay').classList.replace('flex', 'hidden'); }
+        function toggleBtnLoader(show) {
+            document.getElementById('btn-text').style.display = show ? 'none' : 'block';
+            document.getElementById('btn-loader').style.display = show ? 'block' : 'none';
+            document.getElementById('fetchReportBtn').disabled = show;
+        }
+        function enablePunchButtons(inEn, outEn) {
+            document.getElementById('punch-in-btn').disabled = !inEn;
+            document.getElementById('punch-out-btn').disabled = !outEn;
+        }
+        function showMessage(text, type = 'info') {
+            const box = document.getElementById('message-box');
+            document.getElementById('message-text').textContent = text;
+            box.style.backgroundColor = type === 'success' ? '#28a745' : (type === 'error' ? '#dc3545' : '#343a40');
+            box.classList.remove('hidden');
+            setTimeout(() => box.classList.add('hidden'), 4000);
+        }
+    </script>
+</body>
+</html>
