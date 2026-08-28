@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Smart Attendance System (Firebase)</title>
+    <title>Smart Attendance System (Firebase + Drive)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Inter', sans-serif; touch-action: manipulation; }
@@ -150,27 +150,30 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getDatabase, ref, get, set, child } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
-        import { getStorage, ref as storageRef, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-storage.js";
+        
+        // Removed Firebase Storage Import to avoid needing the Blaze Plan
 
         // =======================================================================
-        // FIREBASE CONFIGURATION (REPLACE WITH YOUR FIREBASE CONFIG)
+        // FIREBASE CONFIGURATION
         // =======================================================================
         const firebaseConfig = {
-            apiKey: "YOUR_API_KEY", // Kripya Firebase console se apna API key (Web API Key) yahan daalein
+            apiKey: "AIzaSyBTxsmXcmNECtLkht-OVtqXqFNrJvO-ja8", 
             authDomain: "attandancemasha.firebaseapp.com",
             databaseURL: "https://attandancemasha-default-rtdb.firebaseio.com/",
             projectId: "attandancemasha",
-            storageBucket: "attandancemasha.appspot.com",
-            messagingSenderId: "637250063228", // Aapka Project Number update ho gaya hai
-            appId: "YOUR_APP_ID" // Firebase console se App ID yahan daalein (starts with 1:637250...)
+            storageBucket: "attandancemasha.firebasestorage.app",
+            messagingSenderId: "637250063228",
+            appId: "1:637250063228:web:3e584ced7232e6b62932f9" 
         };
 
         const app = initializeApp(firebaseConfig);
         const database = getDatabase(app);
-        const storage = getStorage(app);
 
-        // Keep this ONLY if you still want to send OTP emails via Apps Script
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw_HQ1QNsy1QgmjhGNM_ViPcugNoZx53RIc2H9Kq1MBaYVJ0NcmsSQZV8kL248tJS8b/exec"; 
+        // =======================================================================
+        // GOOGLE APPS SCRIPT URL (For Google Drive Photo Upload & OTP)
+        // =======================================================================
+        // Naya Web App URL yahan update kar diya gaya hai
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbx7TWB5ZWgXMRHFzpCekGMHBttBfMUf_wuWW-FIsU7CRHEUWTFoB76bMw-qA9cYiSYq/exec"; 
 
         // State Variables
         let currentEmployee = null;
@@ -383,11 +386,24 @@
                     }
                 }
 
-                // 3. Upload to Firebase Storage
-                showLoader('Photo upload ho rahi hai...');
-                const imgRef = storageRef(storage, `attendance_selfies/${currentEmployee.id}/${today}_${punchType}.jpg`);
-                await uploadString(imgRef, photoDataUrl, 'data_url');
-                const photoUrl = await getDownloadURL(imgRef);
+                // 3. Upload Photo to Google Drive (via Apps Script Webhook)
+                showLoader('Photo Google Drive me upload ho rahi hai...');
+                const formData = new FormData();
+                formData.append('action', 'uploadPhoto');
+                formData.append('employeeId', currentEmployee.id);
+                formData.append('timestamp', timestampIso);
+                formData.append('photo', photoDataUrl.split(',')[1]); // Send only base64 text
+                
+                let photoUrl = "Error";
+                try {
+                    const uploadRes = await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: formData });
+                    const uploadResult = await uploadRes.json();
+                    if (uploadResult.status === 'success') {
+                        photoUrl = uploadResult.photoUrl;
+                    }
+                } catch (e) {
+                    console.error("Drive upload failed", e);
+                }
 
                 // 4. Write to Realtime Database
                 showLoader('Database mein save ho raha hai...');
