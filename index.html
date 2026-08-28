@@ -32,6 +32,15 @@
     <div class="w-full max-w-4xl mx-auto bg-white rounded-3xl shadow-2xl p-6 space-y-6">
         <h1 id="main-title" class="text-2xl font-bold text-center text-gray-800">Employee Attendance</h1>
 
+        <!-- ==================== OFFLINE BANNER ==================== -->
+        <div id="offline-banner" class="hidden bg-yellow-50 border-l-4 border-yellow-500 text-yellow-800 p-3 mb-4 rounded-lg shadow-sm justify-between items-center transition-all mx-auto max-w-md">
+            <div>
+                <p class="font-bold text-sm">Offline Punches Pending!</p>
+                <p class="text-xs mt-0.5">Aapke <span id="offline-count" class="font-bold text-red-600">0</span> punch device me save hain.</p>
+            </div>
+            <button id="sync-offline-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg text-sm transition-all shadow-md ml-2 shrink-0">Sync Now</button>
+        </div>
+
         <!-- ==================== VIEW 1: LOGIN ==================== -->
         <div id="login-section" class="space-y-5 max-w-md mx-auto">
             <div>
@@ -215,11 +224,15 @@
         document.getElementById('back-to-login-btn').addEventListener('click', () => showView('login'));
         document.getElementById('send-otp-btn').addEventListener('click', sendOtpFallback);
         document.getElementById('fetchReportBtn').addEventListener('click', fetchMyReport);
+        document.getElementById('sync-offline-btn').addEventListener('click', syncOfflineData);
 
         // Setup Dates
         const todayStr = new Date().toISOString().split('T')[0];
         document.getElementById('startDate').value = todayStr;
         document.getElementById('endDate').value = todayStr;
+
+        // Check offline data on startup
+        checkOfflineData();
 
         // =======================================================================
         // CORE FUNCTIONS (Direct Firebase Access)
@@ -351,6 +364,12 @@
             showLoader(`Punch ${punchType} ho raha hai... Kripya pratiksha karein.`);
             enablePunchButtons(false, false);
             
+            let photoDataUrl = "";
+            let timestampIso = new Date().toISOString();
+            let today = timestampIso.split('T')[0];
+            let lat = currentCoordinates ? currentCoordinates.latitude : 'N/A';
+            let lng = currentCoordinates ? currentCoordinates.longitude : 'N/A';
+
             try {
                 // 1. Capture Photo
                 const video = document.getElementById('camera-feed');
@@ -361,12 +380,27 @@
                 context.translate(canvas.width, 0);
                 context.scale(-1, 1);
                 context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                const photoDataUrl = canvas.toDataURL('image/jpeg', 0.6); // Compress slightly
+                photoDataUrl = canvas.toDataURL('image/jpeg', 0.5); // Compressed to 0.5 for saving space
                 
-                const timestampIso = new Date().toISOString();
-                const today = timestampIso.split('T')[0];
-                const lat = currentCoordinates ? currentCoordinates.latitude : 'N/A';
-                const lng = currentCoordinates ? currentCoordinates.longitude : 'N/A';
+                const punchDataForOffline = {
+                    empId: currentEmployee.id,
+                    punchType: punchType,
+                    timestamp: timestampIso,
+                    lat: lat,
+                    lng: lng,
+                    photoBase64: photoDataUrl.split(',')[1],
+                    location: currentEmployee.location || 'N/A',
+                    department: currentEmployee.department || 'N/A'
+                };
+
+                // Agar internet totally band hai, seedha offline save karein
+                if (!navigator.onLine) {
+                     savePunchOffline(punchDataForOffline);
+                     showMessage(`No Internet! Aapka Punch ${punchType} mobile me save ho gaya hai. Baad me Sync karein.`, 'info');
+                     stopCamera();
+                     resetAfterPunch(punchType);
+                     return;
+                }
 
                 // 2. Upload Photo and Get Google Maps Address via Webhook
                 showLoader('Photo upload aur location check ho rahi hai...');
@@ -374,9 +408,9 @@
                 formData.append('action', 'uploadPhoto');
                 formData.append('employeeId', currentEmployee.id);
                 formData.append('timestamp', timestampIso);
-                formData.append('photo', photoDataUrl.split(',')[1]); 
-                formData.append('lat', lat); // Send Latitude
-                formData.append('lng', lng); // Send Longitude
+                formData.append('photo', punchDataForOffline.photoBase64); 
+                formData.append('lat', lat); 
+                formData.append('lng', lng); 
                 
                 let photoUrl = "Error";
                 let textAddress = "Address Not Found";
@@ -399,7 +433,7 @@
                     timestamp: timestampIso,
                     latitude: lat,
                     longitude: lng,
-                    address: textAddress,      // <-- ADDED THIS: Ye Google sheets me regex match ke kaam aayega
+                    address: textAddress,      
                     photoUrl: photoUrl,
                     location: currentEmployee.location || 'N/A',
                     department: currentEmployee.department || 'N/A'
@@ -407,19 +441,126 @@
 
                 showMessage(`Aapka Punch ${punchType} safaltapoorvak record ho gaya!`, 'success');
                 stopCamera();
-                
-                // Update local status and reset
-                attendanceStatus = punchType === 'In' ? "PunchedIn" : "PunchedOut";
-                document.getElementById('employeeId').value = '';
-                document.getElementById('employeePin').value = '';
-                showView('login');
+                resetAfterPunch(punchType);
 
             } catch (error) {
-                showMessage('Error: ' + error.message, 'error');
-                if (attendanceStatus === "None") enablePunchButtons(true, false);
-                else if (attendanceStatus === "PunchedIn") enablePunchButtons(false, true);
+                console.error(error);
+                // Agar Firebase me save hotey time network tut gaya
+                showMessage('Network Error! Punch Firebase pe nahi gaya, mobile me offline save ho gaya hai.', 'error');
+                
+                savePunchOffline({
+                    empId: currentEmployee.id,
+                    punchType: punchType,
+                    timestamp: timestampIso,
+                    lat: lat,
+                    lng: lng,
+                    photoBase64: photoDataUrl ? photoDataUrl.split(',')[1] : "",
+                    location: currentEmployee.location || 'N/A',
+                    department: currentEmployee.department || 'N/A'
+                });
+                
+                stopCamera();
+                resetAfterPunch(punchType);
             } finally {
                 hideLoader();
+            }
+        }
+        
+        function resetAfterPunch(punchType) {
+             attendanceStatus = punchType === 'In' ? "PunchedIn" : "PunchedOut";
+             document.getElementById('employeeId').value = '';
+             document.getElementById('employeePin').value = '';
+             showView('login');
+        }
+
+        // =======================================================================
+        // OFFLINE SYNC LOGIC
+        // =======================================================================
+        const OFFLINE_DB_KEY = "attendance_offline_punches";
+
+        function savePunchOffline(data) {
+            let offlinePunches = JSON.parse(localStorage.getItem(OFFLINE_DB_KEY) || "[]");
+            offlinePunches.push(data);
+            localStorage.setItem(OFFLINE_DB_KEY, JSON.stringify(offlinePunches));
+            checkOfflineData();
+        }
+
+        function checkOfflineData() {
+            let offlinePunches = JSON.parse(localStorage.getItem(OFFLINE_DB_KEY) || "[]");
+            const banner = document.getElementById('offline-banner');
+            if (offlinePunches.length > 0) {
+                banner.classList.remove('hidden');
+                banner.classList.add('flex');
+                document.getElementById('offline-count').textContent = offlinePunches.length;
+            } else {
+                banner.classList.add('hidden');
+                banner.classList.remove('flex');
+            }
+        }
+
+        async function syncOfflineData() {
+            if (!navigator.onLine) return showMessage("Abhi bhi internet nahi hai! Kripya net chalu karein.", "error");
+            
+            let offlinePunches = JSON.parse(localStorage.getItem(OFFLINE_DB_KEY) || "[]");
+            if (offlinePunches.length === 0) return;
+
+            showLoader('Offline punches Firebase se sync ho rahe hain...');
+            let failedPunches = [];
+
+            for (let i = 0; i < offlinePunches.length; i++) {
+                let p = offlinePunches[i];
+                let today = p.timestamp.split('T')[0];
+                
+                try {
+                    let photoUrl = "Offline Sync";
+                    let textAddress = "Address Not Found";
+                    
+                    if (p.photoBase64) {
+                        const formData = new FormData();
+                        formData.append('action', 'uploadPhoto');
+                        formData.append('employeeId', p.empId);
+                        formData.append('timestamp', p.timestamp);
+                        formData.append('photo', p.photoBase64); 
+                        formData.append('lat', p.lat); 
+                        formData.append('lng', p.lng); 
+                        
+                        try {
+                            const uploadRes = await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: formData });
+                            const uploadResult = await uploadRes.json();
+                            if (uploadResult.status === 'success') {
+                                photoUrl = uploadResult.photoUrl;
+                                textAddress = uploadResult.address || "Address Not Found";
+                            }
+                        } catch (e) { console.error("Drive offline sync failed"); }
+                    }
+
+                    // Save to Firebase
+                    const punchRef = ref(database, `attendance/${p.empId}/${today}/${p.punchType}`);
+                    await set(punchRef, {
+                        timestamp: p.timestamp,
+                        latitude: p.lat,
+                        longitude: p.lng,
+                        address: textAddress,      
+                        photoUrl: photoUrl,
+                        location: p.location || 'N/A',
+                        department: p.department || 'N/A'
+                    });
+
+                } catch (err) {
+                    console.error("Sync failed for a punch", err);
+                    failedPunches.push(p); // Keep it in queue if Firebase fails again
+                }
+            }
+
+            // Save remaining failed punches back to storage
+            localStorage.setItem(OFFLINE_DB_KEY, JSON.stringify(failedPunches));
+            checkOfflineData();
+            hideLoader();
+            
+            if (failedPunches.length === 0) {
+                showMessage("Saare offline punches safaltapoorvak Sync ho gaye!", "success");
+            } else {
+                showMessage("Kuch punches sync nahi hue, net weak ho sakta hai. Baad mein fir try karein.", "error");
             }
         }
 
