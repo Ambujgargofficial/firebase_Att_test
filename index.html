@@ -604,24 +604,24 @@
                     if(p.In) { s.in = new Date(p.In.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); if(p.In.remark) s.rem=p.In.remark; }
                     if(p.Out) { s.out = new Date(p.Out.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); if(p.Out.remark && !s.rem) s.rem=p.Out.remark; }
                     if(p.In && p.Out) {
-                        let iT = new Date(p.In.timestamp), oT = new Date(p.Out.timestamp);
-                        if((oT-iT)/3600000 < 4) s.st='A';
-                        else {
-                            let exp = emp.startTime?emp.startTime.split(':'):null;
-                            if(exp && exp[0]) {
-                                let xIn = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(), parseInt(exp[0]), parseInt(exp[1]||0));
-                                let lateCut = new Date(xIn.getTime() + (emp.allowanceIn||0)*60000);
-                                if(iT >= new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(), 11, 0)) s.st='P/A';
-                                else if(iT > lateCut) s.st='L'; else s.st='P';
-                            } else s.st='P';
-                        }
-                    } else if(p.In || p.Out) s.st='P/A';
-                }
-                if(dt.getDay() === 0) { if(s.st==='A') s.st='W/O'; else if(s.st==='P') sum.OT+=1; else if(s.st==='P/A' || s.st==='L') sum.OT+=0.5; }
-                if(s.st==='P') sum.P++; else if(s.st==='P/A') sum.PA++; else if(s.st==='A') sum.A++; else if(s.st==='L') sum.L++;
-                statuses.push(s);
+                    let iT = new Date(p.In.timestamp), oT = new Date(p.Out.timestamp);
+                    if((oT-iT)/3600000 < 4) s.st='A';
+                    else {
+                        let exp = emp.startTime?emp.startTime.split(':'):null;
+                        if(exp && exp[0]) {
+                            let xIn = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(), parseInt(exp[0]), parseInt(exp[1]||0));
+                            let lateCut = new Date(xIn.getTime() + (emp.allowanceIn||0)*60000);
+                            if(iT >= new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(), 11, 0)) s.st='P/A';
+                            else if(iT > lateCut) s.st='L'; else s.st='P';
+                        } else s.st='P';
+                    }
+                } else if(p.In || p.Out) s.st='P/A';
             }
-            sum.Tot = sum.P + (sum.PA*0.5) + sum.OT + sum.L;
+            if(dt.getDay() === 6) { if(s.st==='A') s.st='W/O'; else if(s.st==='P') sum.OT+=1; else if(s.st==='P/A' || s.st==='L') sum.OT+=0.5; }
+            if(s.st==='P') sum.P++; else if(s.st==='P/A') sum.PA++; else if(s.st==='A') sum.A++; else if(s.st==='L') sum.L++;
+            statuses.push(s);
+        }
+        sum.Tot = sum.P + (sum.PA*0.5) + sum.OT + sum.L;
             sum.Net = sum.Tot - (Math.floor(sum.L/3)*0.5); 
             return {statuses, sum, emp};
         }
