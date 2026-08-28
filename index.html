@@ -14,9 +14,10 @@
         .spin-anim { animation: spin 1s linear infinite; }
         
         /* Employee Report Table Styles */
-        #report-table { border-collapse: collapse; width: 100%; font-size: 12px; }
-        #report-table th, #report-table td { border: 1px solid #ddd; padding: 6px; text-align: center; vertical-align: top; }
-        #report-table th { background-color: #f8fafc; position: sticky; top: 0; z-index: 10; color: #334155; }
+        .report-table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; display: block; max-height: 70vh; }
+        #report-table { border-collapse: collapse; width: 100%; font-size: 12px; min-width: 600px; }
+        #report-table th, #report-table td { border: 1px solid #ddd; padding: 8px; text-align: center; vertical-align: middle; }
+        #report-table th { background-color: #f8fafc; position: sticky; top: 0; z-index: 10; color: #334155; font-weight: bold; }
         .status-P { background-color: #c8e6c9; color: #166534; }
         .status-L { background-color: #fef08a; color: #854d0e; }
         .status-A { background-color: #ffcdd2; color: #991b1b; }
@@ -26,12 +27,14 @@
         .time-text { font-size: 0.75rem; color: #555; margin-top: 4px; }
 
         /* Admin Master Grid Styles */
-        .report-table-wrapper { overflow-x: auto; max-height: 70vh; }
-        .master-grid-cell { padding: 4px 8px; border: 1px solid #e5e7eb; text-align: center; }
+        .master-grid-cell { padding: 6px 8px; border: 1px solid #e5e7eb; text-align: center; }
         .sticky-col-1 { position: sticky; left: 0; z-index: 20; background-color: #f9fafb; border-right: 2px solid #e5e7eb; }
         .sticky-col-2 { position: sticky; left: 70px; z-index: 20; background-color: #f9fafb; border-right: 2px solid #e5e7eb; min-width: 120px; }
+        
+        /* Modal Scroll */
+        .modal-scroll { max-height: 80vh; overflow-y: auto; }
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-3 md:p-6">
 
@@ -85,27 +88,25 @@
 
         <!-- ==================== VIEW 3: CONFIRMATION (EMP DASHBOARD) ==================== -->
         <div id="confirmation-section" class="hidden text-center space-y-5 max-w-md mx-auto">
-            <div class="p-5 bg-indigo-50 rounded-2xl border border-indigo-100 flex flex-col items-center">
-                <div class="w-16 h-16 bg-white rounded-full flex items-center justify-center text-3xl mb-3 shadow-sm">👋</div>
-                <p class="text-sm font-bold text-gray-500 uppercase tracking-wider">Welcome Back</p>
-                <p class="text-2xl font-extrabold text-indigo-800 mt-1" id="employee-name"></p>
-                <p class="text-xs font-semibold text-indigo-500 mt-1" id="employee-details-sub"></p>
-            </div>
-            
-            <!-- Admin Broadcast Message -->
-            <div id="emp-msg-card" class="hidden bg-blue-50 p-4 rounded-2xl border border-blue-200 text-left relative overflow-hidden shadow-sm">
-                <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-blue-500"></div>
-                <div class="pl-2">
-                    <strong class="text-blue-800 text-sm flex items-center gap-2">📢 Message from Admin:</strong>
-                    <p id="emp-msg-text" class="text-sm text-gray-700 font-medium mt-1.5 leading-relaxed"></p>
-                    <p id="emp-msg-time" class="text-[10px] font-bold text-blue-400 mt-2 uppercase tracking-wider text-right"></p>
+            <div class="p-5 bg-indigo-50 rounded-2xl border border-indigo-100 flex items-center justify-between shadow-sm text-left">
+                <div>
+                    <p class="text-sm font-bold text-gray-500 uppercase tracking-wider">Welcome Back</p>
+                    <p class="text-2xl font-extrabold text-indigo-800 mt-1" id="employee-name"></p>
+                    <p class="text-xs font-semibold text-indigo-500 mt-1" id="employee-details-sub"></p>
+                </div>
+                <div class="flex flex-col items-end">
+                    <div id="dash-status-badge" class="bg-gray-200 text-gray-600 text-[11px] font-bold px-2 py-1 rounded mb-2">No Punch Yet</div>
+                    <button type="button" id="view-msg-btn" class="hidden bg-blue-100 text-blue-700 hover:bg-blue-200 font-bold py-1.5 px-3 rounded-lg text-xs shadow-sm transition-colors border border-blue-200 flex items-center gap-1">
+                        ✉️ Msg
+                    </button>
                 </div>
             </div>
-
-            <div class="space-y-4 pt-4">
-                <button type="button" id="proceed-btn" class="w-full bg-emerald-500 text-white py-4 px-4 rounded-2xl hover:bg-emerald-600 font-extrabold text-lg shadow-lg shadow-emerald-200 transition-all flex justify-center items-center gap-2">
-                    📸 Mark Attendance (Camera)
-                </button>
+            
+            <div class="space-y-4 pt-4" id="emp-action-buttons">
+                <!-- Buttons will be injected here dynamically -->
+            </div>
+            
+            <div class="pt-2">
                 <button type="button" id="view-report-direct-btn" class="w-full bg-[#1e293b] text-white py-4 px-4 rounded-2xl hover:bg-black font-bold text-[15px] shadow-lg transition-all flex justify-center items-center gap-2">
                     📊 View My Monthly Report
                 </button>
@@ -115,7 +116,7 @@
         <!-- ==================== VIEW 4: ATTENDANCE PUNCH (CAMERA) ==================== -->
         <div id="attendance-section" class="hidden space-y-4 max-w-sm mx-auto">
             <div class="flex justify-between items-center mb-2">
-                <h2 class="text-lg font-bold text-gray-800">Mark Duty</h2>
+                <h2 id="camera-title" class="text-lg font-bold text-gray-800">Mark Duty</h2>
                 <button id="cancel-punch-btn" class="text-sm font-bold text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors">Cancel</button>
             </div>
 
@@ -139,45 +140,35 @@
                 <p id="accuracy-warning" class="text-[10px] text-red-600 font-bold mt-1 hidden">GPS weak hai. Kripya wait karein ya open area me aayein.</p>
             </div>
 
-            <div id="daily-complete-msg" class="hidden bg-emerald-50 text-emerald-800 p-4 rounded-2xl text-center text-sm font-bold border border-emerald-200">
-                <span class="text-2xl block mb-1">✅</span> Duty Completed for Today.
-            </div>
-
-            <div id="punch-buttons-container" class="grid grid-cols-2 gap-4">
-                <button type="button" id="punch-in-btn" class="bg-[#22c55e] text-white py-4 rounded-2xl hover:bg-[#16a34a] font-extrabold text-lg shadow-lg disabled:bg-gray-300 disabled:opacity-50 transition-colors flex flex-col items-center gap-1">
-                    <span class="text-xl">➡️</span> Duty IN
-                </button>
-                <button type="button" id="punch-out-btn" class="bg-[#ef4444] text-white py-4 rounded-2xl hover:bg-[#dc2626] font-extrabold text-lg shadow-lg disabled:bg-gray-300 disabled:opacity-50 transition-colors flex flex-col items-center gap-1">
-                    <span class="text-xl">⬅️</span> Duty OUT
-                </button>
-            </div>
+            <button type="button" id="capture-submit-btn" class="w-full bg-blue-600 text-white py-4 px-4 rounded-2xl hover:bg-blue-700 font-extrabold text-lg shadow-lg shadow-blue-200 transition-all flex justify-center items-center gap-2">
+                📸 Capture & Submit
+            </button>
         </div>
 
         <!-- ==================== VIEW 5: EMPLOYEE REPORT ==================== -->
         <div id="report-section" class="hidden w-full flex-col">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-lg md:text-xl font-bold text-gray-800">My Monthly Report</h2>
-                <button id="back-from-report-btn" class="text-sm font-bold text-gray-600 hover:bg-gray-100 px-4 py-2 rounded-xl transition-colors">← Back</button>
+            <div class="flex justify-end mb-2">
+                <button id="back-from-report-btn" class="text-sm font-bold text-gray-600 hover:bg-gray-100 px-4 py-2 rounded-xl transition-colors">← Back to Dashboard</button>
             </div>
 
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4 bg-white p-4 rounded-2xl border border-gray-200 shadow-sm items-end">
-                <div>
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4 bg-white p-4 rounded-2xl border border-gray-200 shadow-sm items-end w-full">
+                <div class="w-full">
                     <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Start Date</label>
-                    <input type="date" id="startDate" class="w-full border border-gray-300 rounded-xl p-2.5 text-sm font-semibold bg-gray-50 outline-none focus:ring-2 focus:ring-indigo-500">
+                    <input type="date" id="startDate" class="w-full border border-gray-300 rounded-xl p-2.5 text-sm font-semibold bg-gray-50 outline-none focus:ring-2 focus:ring-indigo-500 box-border">
                 </div>
-                <div>
+                <div class="w-full">
                     <label class="block text-xs font-bold text-gray-500 uppercase mb-1">End Date</label>
-                    <input type="date" id="endDate" class="w-full border border-gray-300 rounded-xl p-2.5 text-sm font-semibold bg-gray-50 outline-none focus:ring-2 focus:ring-indigo-500">
+                    <input type="date" id="endDate" class="w-full border border-gray-300 rounded-xl p-2.5 text-sm font-semibold bg-gray-50 outline-none focus:ring-2 focus:ring-indigo-500 box-border">
                 </div>
-                <button id="fetchReportBtn" class="col-span-2 md:col-span-1 bg-[#1e293b] text-white py-2.5 px-4 rounded-xl hover:bg-black font-bold h-[42px] flex items-center justify-center shadow-md">
+                <button id="fetchReportBtn" class="col-span-2 md:col-span-1 bg-[#1e293b] text-white py-2.5 px-4 rounded-xl hover:bg-black font-bold h-[42px] flex items-center justify-center shadow-md w-full">
                     <span id="btn-text">Fetch</span>
                     <div id="btn-loader" class="small-loader hidden"></div>
                 </button>
             </div>
             
-            <div id="duty-timings" class="mb-4 p-4 bg-indigo-50 rounded-2xl text-sm border border-indigo-100 text-indigo-900 shadow-inner"></div>
+            <div id="duty-timings" class="mb-4 p-4 bg-indigo-50 rounded-2xl text-sm border border-indigo-100 text-indigo-900 shadow-inner hidden"></div>
             
-            <div id="report-container" class="report-table-wrapper bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div id="report-container" class="report-table-wrapper bg-white rounded-2xl border border-gray-200 shadow-sm">
                 <p class="text-center text-gray-500 font-medium py-8">Select dates and click Fetch.</p>
             </div>
         </div>
@@ -246,7 +237,7 @@
                 <div class="flex-1 w-full"><label class="block text-xs font-bold text-gray-500 mb-1">Month & Year</label><input type="month" id="masterGridMonth" class="w-full p-2.5 border rounded-xl bg-gray-50 text-sm font-semibold"></div>
                 <div class="flex-1 w-full"><label class="block text-xs font-bold text-gray-500 mb-1">Dept</label><select id="masterGridDeptFilter" class="w-full p-2.5 border rounded-xl bg-gray-50 text-sm font-semibold"><option value="ALL">All</option></select></div>
                 <div class="flex-1 w-full"><label class="block text-xs font-bold text-gray-500 mb-1">Location</label><select id="masterGridLocFilter" class="w-full p-2.5 border rounded-xl bg-gray-50 text-sm font-semibold"><option value="ALL">All</option></select></div>
-                <button id="generateMasterGridBtn" class="bg-orange-500 text-white py-2.5 px-6 rounded-xl font-bold hover:bg-orange-600 shadow-md h-[42px]">Generate</button>
+                <button id="generateMasterGridBtn" class="bg-orange-500 text-white py-2.5 px-6 rounded-xl font-bold hover:bg-orange-600 shadow-md h-[42px] w-full md:w-auto">Generate</button>
             </div>
             <p class="text-xs text-gray-400 text-right font-bold uppercase">Tip: Copy (Ctrl+C) and paste into Excel.</p>
             <div id="master-grid-wrapper" class="report-table-wrapper bg-white rounded-xl border hidden" style="max-height: 60vh;">
@@ -269,7 +260,7 @@
                 <div class="flex-1 w-full"><label class="block text-xs font-bold text-gray-500 mb-1">Dept</label><select id="dailyDeptFilter" class="w-full p-2.5 border rounded-xl bg-gray-50 text-sm font-semibold"><option value="ALL">All</option></select></div>
                 <div class="flex-1 w-full"><label class="block text-xs font-bold text-gray-500 mb-1">Loc</label><select id="dailyLocFilter" class="w-full p-2.5 border rounded-xl bg-gray-50 text-sm font-semibold"><option value="ALL">All</option></select></div>
                 <div class="flex-1 w-full"><label class="block text-xs font-bold text-gray-500 mb-1">Status</label><select id="dailyStatusFilter" class="w-full p-2.5 border rounded-xl bg-gray-50 text-sm font-semibold"><option value="ALL">All</option><option value="P">Present</option><option value="L">Late</option><option value="P/A">Half Day</option><option value="A">Absent</option></select></div>
-                <button id="fetchDailyStatusBtn" class="bg-amber-500 text-white py-2.5 px-6 rounded-xl font-bold hover:bg-amber-600 shadow-md h-[42px]">Check</button>
+                <button id="fetchDailyStatusBtn" class="bg-amber-500 text-white py-2.5 px-6 rounded-xl font-bold hover:bg-amber-600 shadow-md h-[42px] w-full md:w-auto">Check</button>
             </div>
             <div class="report-table-wrapper bg-white rounded-xl border shadow-sm">
                 <table id="dailyStatusTable"><thead><tr><th>ID</th><th>Name</th><th>Dept</th><th>Loc</th><th>Status</th><th>In</th><th>Out</th></tr></thead><tbody id="dailyStatusTableBody"></tbody></table>
@@ -296,7 +287,7 @@
             <div class="flex justify-between items-center"><h2 class="text-xl font-bold text-gray-800">🚨 Fraud Check</h2><button class="admin-back-btn text-sm font-bold text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 rounded-lg">← Back</button></div>
             <div class="bg-white border border-red-200 p-4 rounded-2xl flex flex-col sm:flex-row gap-4 items-end shadow-sm">
                 <div class="flex-1 w-full"><label class="block text-xs font-bold text-red-600 uppercase mb-1">Select Date</label><input type="date" id="fraud-date" class="w-full p-2.5 border rounded-xl bg-gray-50 text-sm font-semibold"></div>
-                <button id="btn-fetch-fraud" class="bg-red-600 text-white font-bold py-2.5 px-6 rounded-xl hover:bg-red-700 shadow-md">Check Suspicious</button>
+                <button id="btn-fetch-fraud" class="bg-red-600 text-white font-bold py-2.5 px-6 rounded-xl hover:bg-red-700 shadow-md w-full md:w-auto">Check Suspicious</button>
             </div>
             <div class="report-table-wrapper bg-white rounded-xl border shadow-sm">
                 <table id="fraudTable"><thead><tr><th>Time</th><th>Emp ID</th><th>Type</th><th>Address</th><th>Photo</th></tr></thead><tbody id="fraudTableBody"></tbody></table>
@@ -306,9 +297,9 @@
         <!-- ADMIN: EMPLOYEES -->
         <div id="admin-employees-view" class="hidden w-full space-y-4">
             <div class="flex justify-between items-center"><h2 class="text-xl font-bold text-gray-800">Employee Directory</h2><button class="admin-back-btn text-sm font-bold text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 rounded-lg">← Back</button></div>
-            <div class="bg-white border p-4 rounded-2xl flex gap-4 shadow-sm items-end">
-                <div class="flex-1"><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Dept</label><select id="empListDeptFilter" class="w-full p-2.5 border rounded-xl bg-gray-50 text-sm font-semibold"><option value="ALL">All</option></select></div>
-                <div class="flex-1"><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Loc</label><select id="empListLocFilter" class="w-full p-2.5 border rounded-xl bg-gray-50 text-sm font-semibold"><option value="ALL">All</option></select></div>
+            <div class="bg-white border p-4 rounded-2xl flex flex-col md:flex-row gap-4 shadow-sm items-end">
+                <div class="flex-1 w-full"><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Dept</label><select id="empListDeptFilter" class="w-full p-2.5 border rounded-xl bg-gray-50 text-sm font-semibold"><option value="ALL">All</option></select></div>
+                <div class="flex-1 w-full"><label class="block text-xs font-bold text-gray-500 uppercase mb-1">Loc</label><select id="empListLocFilter" class="w-full p-2.5 border rounded-xl bg-gray-50 text-sm font-semibold"><option value="ALL">All</option></select></div>
             </div>
             <div class="report-table-wrapper bg-white rounded-xl border shadow-sm">
                 <table id="empListTable"><thead><tr><th>ID</th><th>Name</th><th>Dept</th><th>Loc</th><th>In</th><th>Out</th><th>Salary</th><th>Status</th></tr></thead><tbody id="empListTableBody"></tbody></table>
@@ -351,9 +342,9 @@
                     <div class="flex-1 w-full"><label class="block text-xs font-bold text-gray-500 mb-1">Rule Type</label><select id="setting-group-type" class="w-full p-2.5 border rounded-xl bg-gray-50 text-sm font-semibold" onchange="populateGroupValDropdown(this.value)"><option value="location">Location</option><option value="dept">Department</option></select></div>
                     <div class="flex-1 w-full"><label class="block text-xs font-bold text-gray-500 mb-1">Group</label><select id="setting-group-val" class="w-full p-2.5 border rounded-xl bg-gray-50 text-sm font-semibold"></select></div>
                     <div class="flex-1 w-full"><label class="block text-xs font-bold text-gray-500 mb-1">Off Day</label><select id="setting-group-day" class="w-full p-2.5 border rounded-xl bg-gray-50 text-sm font-semibold"><option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select></div>
-                    <button onclick="saveWeekOff()" class="bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-md">Add Rule</button>
+                    <button onclick="saveWeekOff()" class="bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-md w-full md:w-auto">Add Rule</button>
                 </div>
-                <div class="mt-4 grid grid-cols-2 gap-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
+                <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 p-3 rounded-xl border border-gray-100">
                     <div><h4 class="text-xs font-bold text-gray-700 mb-2">Location Offs</h4><div id="loc-offs-list" class="space-y-1"></div></div>
                     <div><h4 class="text-xs font-bold text-gray-700 mb-2">Dept Offs</h4><div id="dept-offs-list" class="space-y-1"></div></div>
                 </div>
@@ -364,7 +355,7 @@
         <!-- ==================== OVERLAYS & MODALS ==================== -->
         <div id="loader-overlay" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex-col items-center justify-center z-50 backdrop-blur-sm">
             <div class="loader"></div>
-            <p id="loader-message" class="text-white mt-5 text-lg font-bold tracking-wide"></p>
+            <p id="loader-message" class="text-white mt-5 text-lg font-bold tracking-wide text-center px-4"></p>
         </div>
         
         <div id="message-box" class="hidden fixed top-5 left-1/2 -translate-x-1/2 bg-gray-800 text-white py-3 px-6 rounded-full shadow-2xl z-50 w-11/12 max-w-sm text-center font-bold transition-all transform duration-300">
@@ -376,7 +367,19 @@
             <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm">
                 <h3 class="text-lg font-bold text-gray-800 border-b pb-2 mb-3">Admin Remark</h3>
                 <p id="remark-modal-text" class="text-gray-700 text-sm leading-relaxed mb-4"></p>
-                <button onclick="document.getElementById('remark-modal').classList.add('hidden')" class="w-full bg-gray-100 text-gray-800 font-bold py-2 rounded-xl hover:bg-gray-200">Close</button>
+                <button onclick="document.getElementById('remark-modal').classList.add('hidden'); document.getElementById('remark-modal').classList.remove('flex');" class="w-full bg-gray-100 text-gray-800 font-bold py-2 rounded-xl hover:bg-gray-200">Close</button>
+            </div>
+        </div>
+        
+        <!-- Msg Modal -->
+        <div id="msg-modal" class="fixed inset-0 bg-black/60 hidden flex-col items-center justify-center z-50 p-4 backdrop-blur-sm">
+            <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm">
+                <h3 class="text-lg font-bold text-blue-800 border-b pb-2 mb-3 flex items-center gap-2">✉️ Admin Message</h3>
+                <div class="modal-scroll">
+                    <p id="msg-modal-text" class="text-gray-800 text-sm leading-relaxed mb-2 font-medium"></p>
+                </div>
+                <p id="msg-modal-time" class="text-[10px] text-gray-400 font-bold uppercase tracking-wider text-right mb-4"></p>
+                <button onclick="document.getElementById('msg-modal').classList.add('hidden'); document.getElementById('msg-modal').classList.remove('flex');" class="w-full bg-blue-600 text-white font-bold py-2.5 rounded-xl hover:bg-blue-700 shadow-md">Mark as Read</button>
             </div>
         </div>
 
@@ -408,6 +411,7 @@
         let currentCoordinates = null;
         let attendanceStatus = "None";
         let gpsWatchId = null; 
+        let currentPunchTarget = null;
         
         let allEmployeesData = {};
         let appSettings = { lateRules: { count: 3, deduct: 0.5 }, monthLateRules: {}, empLateRules: {}, locationWeekOffs: {}, deptWeekOffs: {} };
@@ -442,29 +446,28 @@
         document.getElementById('verify-id-btn').addEventListener('click', verifyLogin);
         document.getElementById('btn-logout').addEventListener('click', handleLogout);
         
-        // Emp Dashboard Events
-        document.getElementById('proceed-btn').addEventListener('click', initCameraAndLocation);
         document.getElementById('view-report-direct-btn').addEventListener('click', openReportView);
+        document.getElementById('capture-submit-btn').addEventListener('click', () => {
+            if(currentPunchTarget) handlePunch(currentPunchTarget);
+        });
         
-        // Camera Events
-        document.getElementById('cancel-punch-btn').addEventListener('click', () => { stopCamera(); showView('confirm', 'Welcome Back'); });
-        document.getElementById('punch-in-btn').addEventListener('click', () => handlePunch('In'));
-        document.getElementById('punch-out-btn').addEventListener('click', () => handlePunch('Out'));
+        document.getElementById('cancel-punch-btn').addEventListener('click', () => { stopCamera(); showView('confirm', 'Smart Attendance'); });
         document.getElementById('refresh-location-btn').addEventListener('click', startLocationTracking);
         
-        // Forgot PIN Events
         document.getElementById('show-forgot-btn').addEventListener('click', () => showView('forgot', 'Reset PIN'));
         document.getElementById('back-to-login-btn').addEventListener('click', () => showView('login'));
         document.getElementById('send-otp-btn').addEventListener('click', sendOtpFallback);
         
-        // Report Events
         document.getElementById('fetchReportBtn').addEventListener('click', fetchMyReport);
-        document.getElementById('back-from-report-btn').addEventListener('click', () => showView('confirm', 'Welcome Back'));
+        document.getElementById('back-from-report-btn').addEventListener('click', () => showView('confirm', 'Smart Attendance'));
         
-        // Offline Sync
         document.getElementById('sync-offline-btn').addEventListener('click', syncOfflineData);
+        
+        document.getElementById('view-msg-btn').addEventListener('click', () => {
+            document.getElementById('msg-modal').classList.remove('hidden');
+            document.getElementById('msg-modal').classList.add('flex');
+        });
 
-        // Dates init
         const todayStr = new Date().toISOString().split('T')[0];
         document.getElementById('startDate').value = todayStr; document.getElementById('endDate').value = todayStr;
         checkOfflineData();
@@ -497,7 +500,6 @@
             
             showLoader('Verifying Credentials...');
             try {
-                // Check Admin
                 const adminSnap = await get(ref(database, `admins/${id}`));
                 if (adminSnap.exists() && adminSnap.val().pin === pin) {
                     isAdmin = true; currentEmployee = { id: id, ...adminSnap.val() };
@@ -506,7 +508,6 @@
                     hideLoader(); return;
                 }
 
-                // Check Employee
                 const dbRef = ref(database);
                 const empSnapshot = await get(child(dbRef, `employees/${id}`));
                 if (!empSnapshot.exists()) throw new Error("ID not found.");
@@ -517,7 +518,6 @@
 
                 isAdmin = false; currentEmployee = { id: id, ...empData };
                 
-                // Fetch settings for accurate emp report
                 const setSnap = await get(child(dbRef, 'settings'));
                 if (setSnap.exists()) {
                     const s = setSnap.val();
@@ -528,7 +528,6 @@
                     if(s.deptWeekOffs) appSettings.deptWeekOffs = s.deptWeekOffs;
                 }
 
-                // Check today status
                 const today = new Date().toISOString().split('T')[0];
                 const punchSnapshot = await get(child(dbRef, `attendance/${id}/${today}`));
                 attendanceStatus = "None";
@@ -538,21 +537,51 @@
                     if (punches['In'] && punches['Out']) attendanceStatus = "PunchedOut";
                 }
 
-                // Populate Dashboard
                 document.getElementById('employee-name').textContent = currentEmployee.name;
                 document.getElementById('employee-details-sub').textContent = `ID: ${currentEmployee.id} | ${currentEmployee.department || ''} | ${currentEmployee.location || ''}`;
                 
-                const msgCard = document.getElementById('emp-msg-card');
+                const msgBtn = document.getElementById('view-msg-btn');
                 if (currentEmployee.msg && currentEmployee.msg.text) {
-                    document.getElementById('emp-msg-text').innerText = currentEmployee.msg.text;
-                    document.getElementById('emp-msg-time').innerText = currentEmployee.msg.lastUpdated || "";
-                    msgCard.classList.remove('hidden');
-                } else { msgCard.classList.add('hidden'); }
+                    document.getElementById('msg-modal-text').innerText = currentEmployee.msg.text;
+                    document.getElementById('msg-modal-time').innerText = currentEmployee.msg.lastUpdated || "";
+                    msgBtn.classList.remove('hidden');
+                } else { msgBtn.classList.add('hidden'); }
 
-                showView('confirm', 'Welcome Back');
+                renderEmpActionButtons();
+                showView('confirm', 'Smart Attendance');
             } catch (error) { showMessage(error.message, 'error'); }
             finally { hideLoader(); }
         }
+
+        function renderEmpActionButtons() {
+            const container = document.getElementById('emp-action-buttons');
+            const badge = document.getElementById('dash-status-badge');
+            container.innerHTML = '';
+            
+            if (attendanceStatus === "None") {
+                badge.innerText = "No Punch Yet";
+                badge.className = "bg-gray-200 text-gray-700 text-[11px] font-bold px-2 py-1 rounded mb-2";
+                container.innerHTML = `<button type="button" onclick="startPunchSequence('In')" class="w-full bg-[#dcfce7] border border-[#bbf7d0] text-[#166534] py-5 rounded-2xl hover:bg-[#bbf7d0] font-extrabold text-lg shadow-sm transition-all flex flex-col items-center justify-center gap-1">
+                    <span class="text-2xl text-blue-500">➡️</span> Mark Duty IN
+                </button>`;
+            } else if (attendanceStatus === "PunchedIn") {
+                badge.innerText = "Punched IN";
+                badge.className = "bg-[#dcfce7] text-[#166534] text-[11px] font-bold px-2 py-1 rounded mb-2";
+                container.innerHTML = `<button type="button" onclick="startPunchSequence('Out')" class="w-full bg-[#fee2e2] border border-[#fecaca] text-[#991b1b] py-5 rounded-2xl hover:bg-[#fecaca] font-extrabold text-lg shadow-sm transition-all flex flex-col items-center justify-center gap-1">
+                    <span class="text-2xl text-blue-500">⬅️</span> Mark Duty OUT
+                </button>`;
+            } else {
+                badge.innerText = "Duty Completed";
+                badge.className = "bg-blue-100 text-blue-800 text-[11px] font-bold px-2 py-1 rounded mb-2";
+                container.innerHTML = `<div class="bg-gray-50 border border-gray-200 text-gray-500 p-4 rounded-2xl text-center font-bold">✅ Aaj ki attendance puri ho gayi.</div>`;
+            }
+        }
+        
+        window.startPunchSequence = function(type) {
+            currentPunchTarget = type;
+            document.getElementById('camera-title').innerText = `Mark Duty ${type}`;
+            initCameraAndLocation();
+        };
 
         function handleLogout() {
             currentEmployee = null; isAdmin = false;
@@ -560,28 +589,29 @@
             stopCamera(); showView('login');
         }
 
-        // --- 6. CAMERA & GPS LOGIC (Exact match as requested by user) ---
+        // --- 6. CAMERA & GPS LOGIC ---
         async function initCameraAndLocation() {
-            showLoader('Camera shuru ho raha hai...');
+            showLoader('Starting Camera...');
+            // Background GPS Tracking (Prefetching)
+            startLocationTracking();
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
                 document.getElementById('camera-feed').srcObject = stream;
                 currentStream = stream;
-                
-                showView('attendance', 'Mark Duty');
-                startLocationTracking();
+                showView('attendance', `Duty ${currentPunchTarget}`);
             } catch (err) {
-                showMessage('Camera access nahi ho paaya.', 'error'); showView('confirm');
+                showMessage('Camera access failed.', 'error'); showView('confirm');
             } finally { hideLoader(); }
         }
 
         function startLocationTracking() {
-            enablePunchButtons(false, false); 
+            const btn = document.getElementById('capture-submit-btn');
+            btn.disabled = true; btn.classList.add('opacity-50');
             const locationInfo = document.getElementById('location-info');
             const accuracyWarning = document.getElementById('accuracy-warning');
             const refreshIcon = document.getElementById('refresh-icon');
             
-            locationInfo.innerHTML = 'Hardware GPS se location li ja rahi hai...';
+            locationInfo.innerHTML = 'Fetching GPS location...';
             accuracyWarning.classList.add('hidden');
             refreshIcon.classList.add('spin-anim');
 
@@ -606,33 +636,21 @@
                     }
                     
                     locationInfo.innerHTML = `Location: ${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)} <br>${accuracyHTML}`;
-                    
-                    const punchContainer = document.getElementById('punch-buttons-container');
-                    const dailyMsg = document.getElementById('daily-complete-msg');
-
-                    if (attendanceStatus === "None") {
-                        punchContainer.classList.remove('hidden'); dailyMsg.classList.add('hidden');
-                        enablePunchButtons(true, false);
-                    } else if (attendanceStatus === "PunchedIn") {
-                        punchContainer.classList.remove('hidden'); dailyMsg.classList.add('hidden');
-                        enablePunchButtons(false, true);
-                    } else if (attendanceStatus === "PunchedOut") {
-                        punchContainer.classList.add('hidden'); dailyMsg.classList.remove('hidden');
-                        enablePunchButtons(false, false);
-                    }
+                    btn.disabled = false; btn.classList.remove('opacity-50');
                 },
                 (error) => {
                     refreshIcon.classList.remove('spin-anim');
-                    locationInfo.textContent = 'Location access fail. GPS ON karein aur Refresh dabayein.';
-                    showMessage('Location permission aur GPS ON hona zaruri hai.', 'error');
+                    locationInfo.textContent = 'Location access failed. Turn ON GPS and refresh.';
+                    showMessage('Location permission & GPS must be ON.', 'error');
                 },
                 { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 } 
             );
         }
 
         async function handlePunch(punchType) {
-            showLoader(`Punch ${punchType} ho raha hai...`);
-            enablePunchButtons(false, false);
+            showLoader(`Punching ${punchType} details...`);
+            const btn = document.getElementById('capture-submit-btn');
+            btn.disabled = true; btn.classList.add('opacity-50');
             
             let photoDataUrl = "";
             let timestampIso = new Date().toISOString();
@@ -657,11 +675,11 @@
 
                 if (!navigator.onLine) {
                      savePunchOffline(punchDataForOffline);
-                     showMessage(`No Internet! Punch ${punchType} mobile me save ho gaya.`, 'info');
+                     showMessage(`No Internet! Punch saved offline.`, 'info');
                      stopCamera(); resetAfterPunch(punchType); return;
                 }
 
-                showLoader('Photo upload aur location check ho rahi hai...');
+                showLoader('Uploading to Server...');
                 const formData = new FormData();
                 formData.append('action', 'uploadPhoto'); formData.append('employeeId', currentEmployee.id);
                 formData.append('timestamp', timestampIso); formData.append('photo', punchDataForOffline.photoBase64); 
@@ -672,20 +690,20 @@
                     const uploadRes = await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: formData });
                     const uploadResult = await uploadRes.json();
                     if (uploadResult.status === 'success') { photoUrl = uploadResult.photoUrl; textAddress = uploadResult.address || "Address Not Found"; }
-                } catch (e) { console.error("Drive upload failed", e); }
+                } catch (e) { console.error("Upload failed", e); }
 
-                showLoader('Database mein save ho raha hai...');
+                showLoader('Saving Record...');
                 const punchRef = ref(database, `attendance/${currentEmployee.id}/${today}/${punchType}`);
                 await set(punchRef, {
                     timestamp: timestampIso, latitude: lat, longitude: lng, address: textAddress,      
                     photoUrl: photoUrl, location: currentEmployee.location || 'N/A', department: currentEmployee.department || 'N/A'
                 });
 
-                showMessage(`Punch ${punchType} Safal!`, 'success');
+                showMessage(`Duty ${punchType} Marked Successfully!`, 'success');
                 stopCamera(); resetAfterPunch(punchType);
 
             } catch (error) {
-                showMessage('Network Error! Punch offline save ho gaya.', 'error');
+                showMessage('Network Error! Saved offline.', 'error');
                 savePunchOffline({
                     empId: currentEmployee.id, punchType: punchType, timestamp: timestampIso, lat: lat, lng: lng,
                     photoBase64: photoDataUrl ? photoDataUrl.split(',')[1] : "", location: currentEmployee.location || 'N/A', department: currentEmployee.department || 'N/A'
@@ -696,6 +714,7 @@
 
         function resetAfterPunch(punchType) {
              attendanceStatus = punchType === 'In' ? "PunchedIn" : "PunchedOut";
+             renderEmpActionButtons();
              showView('confirm');
         }
 
@@ -714,11 +733,11 @@
             } else { banner.classList.add('hidden'); banner.classList.remove('flex'); }
         }
         async function syncOfflineData() {
-            if (!navigator.onLine) return showMessage("Internet nahi hai!", "error");
+            if (!navigator.onLine) return showMessage("No Internet Connection!", "error");
             let offlinePunches = JSON.parse(localStorage.getItem(OFFLINE_DB_KEY) || "[]");
             if (offlinePunches.length === 0) return;
 
-            showLoader('Offline punches Sync ho rahe hain...');
+            showLoader('Syncing Offline Data...');
             let failedPunches = [];
 
             for (let i = 0; i < offlinePunches.length; i++) {
@@ -741,11 +760,11 @@
             }
             localStorage.setItem(OFFLINE_DB_KEY, JSON.stringify(failedPunches)); checkOfflineData(); hideLoader();
             if (failedPunches.length === 0) showMessage("Synced Successfully!", "success");
-            else showMessage("Some failed. Try again later.", "error");
+            else showMessage("Some failed. Try again.", "error");
         }
 
         // --- 8. EMPLOYEE REPORT LOGIC ---
-        function openReportView() { showView('report', 'My Report'); }
+        function openReportView() { showView('report', 'My Attendance Report'); }
         
         async function fetchMyReport() {
             const startDateStr = document.getElementById('startDate').value; const endDateStr = document.getElementById('endDate').value;
@@ -842,7 +861,8 @@
         }
 
         function renderReport(report) {
-            document.getElementById('duty-timings').innerHTML = `<div class="flex flex-col md:flex-row justify-between"><div><strong>${currentEmployee.name}</strong> (${currentEmployee.id})<br><span class="text-xs">${currentEmployee.department || 'N/A'} | ${currentEmployee.location || 'N/A'}</span></div><div class="text-right mt-2 md:mt-0">Shift: ${currentEmployee.startTime || '00:00'} to ${currentEmployee.endTime || '00:00'}<br><span class="text-xs">Grace In: ${currentEmployee.allowanceIn || 0}m | Out: ${currentEmployee.allowanceOut || 0}m</span></div></div>`;
+            document.getElementById('duty-timings').innerHTML = `<div class="flex flex-col md:flex-row justify-between"><div><strong>${currentEmployee.name}</strong> (${currentEmployee.id})<br><span class="text-xs text-gray-500">${currentEmployee.department || 'N/A'} | ${currentEmployee.location || 'N/A'}</span></div><div class="text-right mt-2 md:mt-0">Shift: ${currentEmployee.startTime || '00:00'} to ${currentEmployee.endTime || '00:00'}<br><span class="text-xs text-gray-500">Grace In: ${currentEmployee.allowanceIn || 0}m | Out: ${currentEmployee.allowanceOut || 0}m</span></div></div>`;
+            document.getElementById('duty-timings').classList.remove('hidden');
             
             let html = `<table id="report-table"><thead><tr><th>Date</th><th>In</th><th>Out</th><th>Status</th><th>Info</th></tr></thead><tbody>`;
             report.statuses.forEach(day => {
@@ -864,8 +884,8 @@
         // --- 9. UTILITIES ---
         async function sendOtpFallback() {
             const empId = document.getElementById('forgot-employeeId').value.trim();
-            if(!empId) return showMessage('Employee ID daalna zaruri hai.', 'error');
-            showLoader('OTP bheja ja raha hai...');
+            if(!empId) return showMessage('Employee ID required.', 'error');
+            showLoader('Sending OTP via Email...');
             try {
                 const res = await fetch(`${GOOGLE_SCRIPT_URL}?action=sendOtp&empId=${empId}`).then(r=>r.json());
                 showMessage(res.message, res.status);
@@ -879,7 +899,6 @@
         function showLoader(msg) { document.getElementById('loader-message').textContent = msg; document.getElementById('loader-overlay').classList.remove('hidden'); document.getElementById('loader-overlay').classList.add('flex'); }
         function hideLoader() { document.getElementById('loader-overlay').classList.add('hidden'); document.getElementById('loader-overlay').classList.remove('flex');}
         function toggleBtnLoader(show) { document.getElementById('btn-text').style.display = show ? 'none' : 'block'; document.getElementById('btn-loader').style.display = show ? 'block' : 'none'; document.getElementById('fetchReportBtn').disabled = show; }
-        function enablePunchButtons(inEn, outEn) { document.getElementById('punch-in-btn').disabled = !inEn; document.getElementById('punch-out-btn').disabled = !outEn; }
         function showMessage(text, type = 'info') {
             const box = document.getElementById('message-box'); document.getElementById('message-text').textContent = text;
             box.style.backgroundColor = type === 'success' ? '#16a34a' : (type === 'error' ? '#dc2626' : '#1f2937');
