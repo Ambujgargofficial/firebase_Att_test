@@ -368,44 +368,31 @@
                 const lat = currentCoordinates ? currentCoordinates.latitude : 'N/A';
                 const lng = currentCoordinates ? currentCoordinates.longitude : 'N/A';
 
-                // 2. Fetch Text Address from Coordinates (Reverse Geocoding)
-                showLoader('Text Address nikala ja raha hai...');
-                let textAddress = "Address Not Found";
-                
-                if (lat !== 'N/A' && lng !== 'N/A') {
-                    try {
-                        // Nominatim OSM API is free and doesn't require keys.
-                        const geoResponse = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`);
-                        if(geoResponse.ok) {
-                            const geoData = await geoResponse.json();
-                            textAddress = geoData.display_name || "Address Not Found";
-                        }
-                    } catch (geoError) {
-                        console.error("Geocoding failed:", geoError);
-                        textAddress = "Address Fetch Error";
-                    }
-                }
-
-                // 3. Upload Photo to Google Drive (via Apps Script Webhook)
-                showLoader('Photo Google Drive me upload ho rahi hai...');
+                // 2. Upload Photo and Get Google Maps Address via Webhook
+                showLoader('Photo upload aur location check ho rahi hai...');
                 const formData = new FormData();
                 formData.append('action', 'uploadPhoto');
                 formData.append('employeeId', currentEmployee.id);
                 formData.append('timestamp', timestampIso);
-                formData.append('photo', photoDataUrl.split(',')[1]); // Send only base64 text
+                formData.append('photo', photoDataUrl.split(',')[1]); 
+                formData.append('lat', lat); // Send Latitude
+                formData.append('lng', lng); // Send Longitude
                 
                 let photoUrl = "Error";
+                let textAddress = "Address Not Found";
+                
                 try {
                     const uploadRes = await fetch(GOOGLE_SCRIPT_URL, { method: 'POST', body: formData });
                     const uploadResult = await uploadRes.json();
                     if (uploadResult.status === 'success') {
                         photoUrl = uploadResult.photoUrl;
+                        textAddress = uploadResult.address || "Address Not Found";
                     }
                 } catch (e) {
                     console.error("Drive upload failed", e);
                 }
 
-                // 4. Write to Realtime Database
+                // 3. Write to Realtime Database
                 showLoader('Database mein save ho raha hai...');
                 const punchRef = ref(database, `attendance/${currentEmployee.id}/${today}/${punchType}`);
                 await set(punchRef, {
@@ -564,7 +551,7 @@
 
             let tableHTML = '<table id="report-table" class="mt-4 shadow-sm w-full"><thead><tr>';
             data.headers.forEach(day => { tableHTML += `<th>${day}</th>`; });
-            tableHTML += '<th>Total Days</th><th>Net Days</th><th>Earned Salary</th></tr></thead><tbody><tr>';
+            tableHTML += '<th>Total Days</th><th>Net Days</th></tr></thead><tbody><tr>';
 
             data.statuses.forEach(dayData => {
                 const sClass = dayData.status === 'P/A' ? 'status-PA' : (dayData.status === 'W/O' ? 'status-WO' : `status-${dayData.status}`);
@@ -574,8 +561,7 @@
             });
 
             tableHTML += `<td class="font-bold bg-gray-50">${data.summary.TotDays}</td>
-                          <td class="font-bold bg-gray-100">${data.summary.NetDays}</td>
-                          <td class="font-bold text-green-700 bg-green-50">₹${data.summary.EarnedSalary}</td></tr></tbody></table>`;
+                          <td class="font-bold bg-gray-100">${data.summary.NetDays}</td></tr></tbody></table>`;
             
             document.getElementById('report-container').innerHTML = tableHTML;
         }
