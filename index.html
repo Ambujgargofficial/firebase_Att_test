@@ -33,9 +33,13 @@
         input[type="date"], input[type="month"] { min-width: 140px; letter-spacing: 0.5px; }
         .modal-scroll { max-height: 60vh; overflow-y: auto; }
         
-        /* VERY IMPORTANT: Safe classes to avoid layout breakage */
+        /* Safe classes to avoid layout breakage */
         .show-block { display: block !important; }
         .show-flex { display: flex !important; }
+        
+        /* Toggle Switch CSS */
+        .toggle-checkbox:checked { right: 0; border-color: #68D391; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #68D391; }
     </style>
 </head>
 <body class="flex flex-col items-center justify-center min-h-screen p-3 md:p-6">
@@ -75,6 +79,7 @@
             </div>
         </div>
 
+        <!-- Forgot PIN Section -->
         <div id="forgot-pin-section" class="hidden space-y-5 max-w-sm mx-auto mt-10">
             <div id="otp-request-box" class="space-y-4">
                 <div>
@@ -108,8 +113,6 @@
                 </div>
                 <div class="flex flex-col items-end gap-2">
                     <span id="emp-status-badge" class="bg-gray-200 text-gray-700 text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">No Punch</span>
-                    
-                    <!-- NEW MSG ICON -->
                     <button id="view-msg-btn" class="hidden bg-white hover:bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold py-1.5 px-3 rounded-lg shadow-sm flex items-center gap-1 transition-colors">
                         ✉️ Msg
                     </button>
@@ -155,11 +158,23 @@
 
         <div id="report-section" class="hidden w-full flex-col">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold text-gray-800">My Attendance Report</h2>
-                <button id="backToDashBtn" class="text-sm font-bold text-gray-600 hover:bg-gray-100 px-3 py-1.5 rounded-lg transition-colors">← Back</button>
+                <h2 class="text-xl font-bold text-gray-800">Attendance Report</h2>
+                <button class="back-to-dash-btn text-sm font-bold text-gray-600 hover:bg-gray-100 px-3 py-1.5 rounded-lg transition-colors">← Back</button>
             </div>
 
-            <div class="flex flex-col sm:flex-row gap-3 mb-4 bg-white p-4 rounded-2xl border border-gray-200 shadow-sm items-end w-full">
+            <!-- Dynamic Summary Box -->
+            <div id="report-summary-box" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 hidden">
+                <div class="bg-gray-50 border border-gray-200 p-3 rounded-xl flex flex-col items-center justify-center shadow-sm"><span class="text-[10px] text-gray-500 font-bold uppercase">Total Days</span><span id="sum-tot" class="text-lg font-extrabold text-gray-800">0</span></div>
+                <div class="bg-green-50 border border-green-200 p-3 rounded-xl flex flex-col items-center justify-center shadow-sm"><span class="text-[10px] text-green-600 font-bold uppercase">Present (P)</span><span id="sum-p" class="text-lg font-extrabold text-green-700">0</span></div>
+                <div class="bg-blue-50 border border-blue-200 p-3 rounded-xl flex flex-col items-center justify-center shadow-sm"><span class="text-[10px] text-blue-600 font-bold uppercase">Half (P/A)</span><span id="sum-pa" class="text-lg font-extrabold text-blue-700">0</span></div>
+                <div class="bg-red-50 border border-red-200 p-3 rounded-xl flex flex-col items-center justify-center shadow-sm"><span class="text-[10px] text-red-600 font-bold uppercase">Absent (A)</span><span id="sum-a" class="text-lg font-extrabold text-red-700">0</span></div>
+                <div class="bg-yellow-50 border border-yellow-200 p-3 rounded-xl flex flex-col items-center justify-center shadow-sm"><span class="text-[10px] text-yellow-600 font-bold uppercase">Late (L)</span><span id="sum-l" class="text-lg font-extrabold text-yellow-700">0</span></div>
+                <div class="bg-indigo-50 border border-indigo-200 p-3 rounded-xl flex flex-col items-center justify-center shadow-sm"><span class="text-[10px] text-indigo-600 font-bold uppercase">Week Off (W/O)</span><span id="sum-wo" class="text-lg font-extrabold text-indigo-700">0</span></div>
+                <div class="bg-orange-50 border border-orange-200 p-3 rounded-xl flex flex-col items-center justify-center shadow-sm"><span class="text-[10px] text-orange-600 font-bold uppercase">Late Ded.</span><span id="sum-ld" class="text-lg font-extrabold text-orange-700">0</span></div>
+                <div class="bg-emerald-100 border border-emerald-300 p-3 rounded-xl flex flex-col items-center justify-center shadow-md"><span class="text-[10px] text-emerald-800 font-bold uppercase">Net Days</span><span id="sum-net" class="text-xl font-black text-emerald-900">0</span></div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3 mb-4 bg-white p-4 rounded-2xl border border-gray-200 shadow-sm items-end w-full" id="emp-report-controls">
                 <div class="flex-1 w-full">
                     <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Start Date</label>
                     <input type="date" id="startDate" class="w-full border border-gray-300 rounded-xl p-2.5 text-sm font-bold bg-gray-50 outline-none focus:ring-2 focus:ring-indigo-500">
@@ -182,11 +197,15 @@
         </div>
 
         <div id="admin-dashboard" class="hidden w-full flex-col">
-            <div class="bg-gradient-to-r from-indigo-900 to-slate-900 p-6 rounded-3xl text-white mb-6 shadow-xl">
-                <h2 class="text-2xl font-extrabold tracking-wide">Admin Portal</h2>
-                <p class="text-sm text-indigo-200 font-medium mt-1">Manage staff, reports, manual marks and fraud checks.</p>
+            <div class="bg-gradient-to-r from-indigo-900 to-slate-900 p-6 rounded-3xl text-white mb-6 shadow-xl flex justify-between items-center">
+                <div>
+                    <h2 class="text-2xl font-extrabold tracking-wide">Admin Portal</h2>
+                    <p class="text-sm text-indigo-200 font-medium mt-1">Manage staff, reports, and settings.</p>
+                </div>
+                <button id="admin-btn-settings" class="bg-white/20 hover:bg-white/30 p-3 rounded-xl transition-colors" title="Settings">⚙️</button>
             </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
                 <div id="admin-btn-reports" class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-all">
                     <div class="text-3xl mb-3">📊</div><h3 class="font-bold text-lg text-gray-800">Employee Reports</h3>
                 </div>
@@ -199,9 +218,13 @@
                 <div id="admin-btn-fraud" class="bg-white p-5 rounded-3xl shadow-sm border border-red-100 cursor-pointer hover:shadow-md transition-all bg-red-50">
                     <div class="text-3xl mb-3">🚨</div><h3 class="font-bold text-lg text-red-800">Fraud Check</h3>
                 </div>
+                <div id="admin-btn-empdir" class="bg-white p-5 rounded-3xl shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-all">
+                    <div class="text-3xl mb-3">👥</div><h3 class="font-bold text-lg text-gray-800">Employee Directory</h3>
+                </div>
             </div>
         </div>
         
+        <!-- Admin Sub View: Reports -->
         <div id="admin-reports-view" class="hidden w-full flex-col space-y-4">
             <div class="flex justify-between items-center">
                 <h2 class="text-xl font-bold">Individual Reports</h2>
@@ -218,9 +241,9 @@
                 <div class="w-full"><label class="block text-[10px] font-bold text-gray-500 uppercase mb-1">End Date</label><input type="date" id="adminEnd" class="w-full p-2.5 border rounded-xl text-sm font-bold"></div>
                 <button id="fetchAdminReportBtn" class="bg-indigo-600 text-white font-bold px-6 py-2.5 rounded-xl w-full md:w-auto h-[42px]">Fetch</button>
             </div>
-            <div id="admin-rep-container" class="report-table-wrapper bg-white"><p class="text-center p-4 text-gray-500">Select Employee & Dates to fetch report.</p></div>
         </div>
 
+        <!-- Admin Sub View: Master Grid -->
         <div id="admin-master-grid-view" class="hidden w-full flex-col space-y-4">
             <div class="flex justify-between items-center">
                 <h2 class="text-xl font-bold">Monthly Master Grid</h2>
@@ -239,6 +262,7 @@
             </div>
         </div>
 
+        <!-- Admin Sub View: Manual Punch -->
         <div id="admin-manual-view" class="hidden w-full flex-col space-y-4">
             <div class="flex justify-between items-center">
                 <h2 class="text-xl font-bold">Manual Punch</h2>
@@ -271,6 +295,7 @@
             </div>
         </div>
 
+        <!-- Admin Sub View: Fraud Check -->
         <div id="admin-fraud-view" class="hidden w-full flex-col space-y-4">
             <div class="flex justify-between items-center">
                 <h2 class="text-xl font-bold text-red-800">🚨 Fraud Check (Address)</h2>
@@ -280,12 +305,68 @@
                 <div class="w-full"><label class="block text-[10px] font-bold text-red-800 uppercase mb-1">Check Date</label><input type="date" id="fraudDate" class="w-full p-2.5 border border-red-300 rounded-xl text-sm font-bold bg-white"></div>
                 <button id="fetchFraudBtn" class="bg-red-600 text-white font-bold px-6 py-2.5 rounded-xl w-full md:w-auto h-[42px]">Check Punches</button>
             </div>
-            <p class="text-xs text-gray-500">Checking for punches outside authorized zones (Shikar pur, Devpuri, Hans).</p>
+            <p class="text-xs text-gray-500">Checking for punches outside authorized zones.</p>
             <div id="fraud-container" class="report-table-wrapper bg-white hidden">
                 <table class="report-table text-[11px]"><thead id="fraudHead"></thead><tbody id="fraudBody"></tbody></table>
             </div>
         </div>
 
+        <!-- Admin Sub View: Employee Directory -->
+        <div id="admin-empdir-view" class="hidden w-full flex-col space-y-4">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-bold">Employee Directory</h2>
+                <button class="admin-back-btn text-sm font-bold text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 rounded-lg">← Back</button>
+            </div>
+            <div class="bg-white p-4 rounded-2xl border shadow-sm">
+                <label class="block text-sm font-bold mb-2">Filter by Status</label>
+                <select id="empDirStatusFilter" class="w-full p-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm font-bold outline-none">
+                    <option value="all">All Employees</option>
+                    <option value="active" selected>Active Only</option>
+                    <option value="inactive">Inactive Only</option>
+                </select>
+            </div>
+            <div class="report-table-wrapper bg-white mt-2">
+                <table class="report-table text-[12px]">
+                    <thead><tr><th>ID</th><th>Name</th><th>Dept</th><th>Location</th><th>Shift</th><th>Status</th></tr></thead>
+                    <tbody id="empdirBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Admin Sub View: Settings -->
+        <div id="admin-settings-view" class="hidden w-full flex-col space-y-4">
+            <div class="flex justify-between items-center">
+                <h2 class="text-xl font-bold text-gray-800">⚙️ System Settings</h2>
+                <button class="admin-back-btn text-sm font-bold text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 rounded-lg">← Back</button>
+            </div>
+            
+            <div class="bg-white p-5 rounded-2xl border shadow-sm space-y-6">
+                <!-- Toggle MSG -->
+                <div class="flex items-center justify-between border-b pb-4">
+                    <div>
+                        <h3 class="font-bold text-gray-800">Auto-Show Messages</h3>
+                        <p class="text-xs text-gray-500">Automatically open message popup when employee logs in.</p>
+                    </div>
+                    <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                        <input type="checkbox" name="toggle" id="autoShowMsgToggle" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer"/>
+                        <label for="autoShowMsgToggle" class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"></label>
+                    </div>
+                </div>
+
+                <!-- Dept Week Off Config -->
+                <div>
+                    <h3 class="font-bold text-gray-800 mb-2">Department Weekly Off Days</h3>
+                    <p class="text-xs text-gray-500 mb-4">Set which day of the week is considered a Week Off for each department. By default, it's Saturday.</p>
+                    <div id="dept-wo-container" class="space-y-2">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+                
+                <button id="saveSettingsBtn" class="w-full bg-indigo-600 text-white font-bold px-6 py-3 rounded-xl hover:bg-indigo-700 shadow-md">Save Settings</button>
+            </div>
+        </div>
+
+        <!-- Loaders and Overlays -->
         <div id="loader-overlay" class="hidden fixed inset-0 bg-gray-900 bg-opacity-70 flex-col items-center justify-center z-50 backdrop-blur-sm">
             <div class="loader"></div>
             <p id="loader-message" class="text-white mt-5 text-lg font-bold tracking-wide text-center px-4"></p>
@@ -295,7 +376,7 @@
             <p id="message-text"></p>
         </div>
 
-        <!-- Message/Remark Modals -->
+        <!-- Modals -->
         <div id="msg-modal" class="fixed inset-0 bg-black/60 hidden flex-col items-center justify-center z-50 p-4 backdrop-blur-sm">
             <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-sm">
                 <h3 class="text-lg font-extrabold text-blue-800 border-b pb-2 mb-3">✉️ Important Message</h3>
@@ -337,6 +418,7 @@
         let isAdmin = false;
         let currentStream, gpsWatchId, currentCoordinates, currentPunchTarget;
         let allEmployeesData = {};
+        let globalSettings = { autoShowMsg: false, deptWeekOffs: {} };
 
         // DOM Elements setup on load
         const tdStr = new Date().toISOString().split('T')[0];
@@ -349,16 +431,15 @@
         const now = new Date();
         document.getElementById('gridMonth').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
+        // View Management with Safe Classes
         function showView(viewId, titleText = "Smart Attendance") {
-            const viewsList = ['login-section', 'forgot-pin-section', 'employee-dashboard', 'attendance-section', 'report-section', 'admin-dashboard', 'admin-reports-view', 'admin-master-grid-view', 'admin-manual-view', 'admin-fraud-view'];
+            const viewsList = ['login-section', 'forgot-pin-section', 'employee-dashboard', 'attendance-section', 'report-section', 'admin-dashboard', 'admin-reports-view', 'admin-master-grid-view', 'admin-manual-view', 'admin-fraud-view', 'admin-settings-view', 'admin-empdir-view'];
             
-            // Remove active classes safely
             viewsList.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) { el.classList.remove('show-block', 'show-flex'); el.classList.add('hidden'); }
             });
             
-            // Add correct display class
             const target = document.getElementById(viewId);
             if (target) {
                 target.classList.remove('hidden');
@@ -375,13 +456,13 @@
             else logoutBtn.classList.remove('hidden');
         }
 
+        // Helpers
         function showMessage(text, type = 'info') {
             const box = document.getElementById('message-box');
             document.getElementById('message-text').textContent = text;
             box.style.backgroundColor = type === 'success' ? '#16a34a' : (type === 'error' ? '#dc2626' : '#1f2937');
             box.classList.remove('hidden'); setTimeout(() => box.classList.add('hidden'), 4000);
         }
-        
         function showLoader(msg) { document.getElementById('loader-message').textContent = msg; document.getElementById('loader-overlay').classList.replace('hidden', 'flex'); }
         function hideLoader() { document.getElementById('loader-overlay').classList.replace('flex', 'hidden'); }
         
@@ -389,7 +470,36 @@
             document.getElementById('msg-modal').classList.replace('flex', 'hidden');
             document.getElementById('remark-modal').classList.replace('flex', 'hidden');
         };
-        
+
+        async function fetchGlobalData() {
+            try {
+                // Fetch Employees
+                const empSnap = await get(ref(database, 'employees'));
+                if (empSnap.exists()) allEmployeesData = empSnap.val();
+                
+                // Fetch Settings
+                const setSnap = await get(ref(database, 'settings'));
+                if (setSnap.exists()) {
+                    let st = setSnap.val();
+                    globalSettings.autoShowMsg = st.autoShowMsg || false;
+                    globalSettings.deptWeekOffs = st.deptWeekOffs || {};
+                }
+                
+                // Populate Dropdowns
+                const sels = ['repEmpSelect', 'manualEmpSelect'];
+                sels.forEach(sId => {
+                    const sel = document.getElementById(sId);
+                    if(sel) {
+                        sel.innerHTML = '<option value="">-- Select Employee --</option>';
+                        Object.entries(allEmployeesData).forEach(([id, emp]) => {
+                            let label = emp.status === 'inactive' ? `(Inactive)` : '';
+                            sel.innerHTML += `<option value="${id}">${emp.name || 'N/A'} (${id}) ${label}</option>`;
+                        });
+                    }
+                });
+            } catch(e) { console.error("Global fetch err:", e); }
+        }
+
         async function verifyLogin() {
             const empId = document.getElementById('employeeId').value.trim();
             const pin = document.getElementById('employeePin').value.trim();
@@ -397,6 +507,7 @@
             
             showLoader('Verifying Identity...');
             try {
+                // Check Admin
                 const adminSnap = await get(ref(database, `admins/${empId}`));
                 if (adminSnap.exists() && adminSnap.val().pin === pin) {
                     isAdmin = true; 
@@ -407,6 +518,7 @@
                     return;
                 }
 
+                // Check Employee
                 const empSnap = await get(ref(database, `employees/${empId}`));
                 if (!empSnap.exists()) throw new Error("ID not found.");
                 
@@ -416,37 +528,24 @@
 
                 isAdmin = false; 
                 currentEmployee = { id: empId, ...empData };
+                
+                await fetchGlobalData(); 
                 setupEmployeeDashboard();
             } catch (err) { showMessage(err.message, 'error'); } finally { hideLoader(); }
-        }
-
-        async function fetchGlobalData() {
-            try {
-                const empSnap = await get(ref(database, 'employees'));
-                if (empSnap.exists()) allEmployeesData = empSnap.val();
-                
-                const sels = ['repEmpSelect', 'manualEmpSelect'];
-                sels.forEach(sId => {
-                    const sel = document.getElementById(sId);
-                    if(sel) {
-                        sel.innerHTML = '<option value="">-- Select Employee --</option>';
-                        Object.entries(allEmployeesData).forEach(([id, emp]) => {
-                            sel.innerHTML += `<option value="${id}">${emp.name || 'N/A'} (${id})</option>`;
-                        });
-                    }
-                });
-            } catch(e) { console.error("Global fetch err:", e); }
         }
 
         async function setupEmployeeDashboard() {
             document.getElementById('emp-name-dash').textContent = currentEmployee.name;
             document.getElementById('emp-details-dash').textContent = `ID: ${currentEmployee.id} | ${currentEmployee.department || ''} | ${currentEmployee.location || ''}`;
             
+            // MSG Logic
             const msgBtn = document.getElementById('view-msg-btn');
+            let hasMsg = false;
             if (currentEmployee.msg && currentEmployee.msg.text) {
                 document.getElementById('msg-modal-text').innerText = currentEmployee.msg.text;
                 document.getElementById('msg-modal-time').innerText = currentEmployee.msg.lastUpdated || "";
                 msgBtn.classList.remove('hidden');
+                hasMsg = true;
             } else { msgBtn.classList.add('hidden'); }
 
             const today = new Date().toISOString().split('T')[0];
@@ -459,6 +558,10 @@
             }
             renderDashButtons(status);
             showView('employee-dashboard', 'Employee Dashboard');
+
+            if(hasMsg && globalSettings.autoShowMsg) {
+                setTimeout(() => { document.getElementById('view-msg-btn').click(); }, 600);
+            }
         }
 
         function renderDashButtons(status) {
@@ -565,7 +668,6 @@
             if(arr.length>0){ ban.classList.remove('hidden'); ban.classList.add('flex'); document.getElementById('offline-count').textContent=arr.length; } 
             else { ban.classList.remove('flex'); ban.classList.add('hidden'); } 
         }
-        
         async function syncOfflineData() {
             if(!navigator.onLine) return showMessage("No Internet!", "error");
             let arr = JSON.parse(localStorage.getItem("offlineP") || "[]"); if(arr.length===0) return;
@@ -583,75 +685,112 @@
             localStorage.setItem("offlineP", JSON.stringify(failed)); checkOffline(); hideLoader();
             if(failed.length===0) showMessage("Synced Successfully!", "success"); else showMessage("Some failed. Try again.", "error");
         }
-        checkOffline(); // init check
-
-        async function fetchMyReport() {
-            const sd = document.getElementById('startDate').value, ed = document.getElementById('endDate').value;
-            if(!sd || !ed) return;
-            document.getElementById('btn-text').style.display='none'; document.getElementById('btn-loader').style.display='block';
-            try {
-                const snap = await get(ref(database, `attendance/${currentEmployee.id}`));
-                const data = calculateReport(currentEmployee, snap.exists()?snap.val():{}, sd, ed);
-                renderReportUI(data, 'duty-timings', 'report-container', false);
-            } catch(e) { console.error(e); } finally { document.getElementById('btn-text').style.display='block'; document.getElementById('btn-loader').style.display='none'; }
-        }
+        checkOffline();
 
         function calculateReport(emp, punches, startStr, endStr) {
             let start = new Date(startStr), end = new Date(endStr), statuses=[], sum={P:0, PA:0, A:0, L:0, OT:0, WO:0, Tot:0, Net:0};
+            
+            let woDay = 6; // Default Sat
+            if(globalSettings?.deptWeekOffs?.[emp.department] !== undefined) {
+                woDay = parseInt(globalSettings.deptWeekOffs[emp.department]);
+            }
+            let totalWODays = 0;
+
             for(let dt=new Date(start); dt<=end; dt.setDate(dt.getDate()+1)) {
                 let dKey = dt.toISOString().split('T')[0], s = {date: dKey, st:'A', in:'-', out:'-', rem:''}, p = punches[dKey];
+                
                 if(p) {
                     if(p.In) { s.in = new Date(p.In.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); if(p.In.remark) s.rem=p.In.remark; }
                     if(p.Out) { s.out = new Date(p.Out.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); if(p.Out.remark && !s.rem) s.rem=p.Out.remark; }
                     if(p.In && p.Out) {
-                    let iT = new Date(p.In.timestamp), oT = new Date(p.Out.timestamp);
-                    if((oT-iT)/3600000 < 4) s.st='A';
-                    else {
-                        let exp = emp.startTime?emp.startTime.split(':'):null;
-                        if(exp && exp[0]) {
-                            let xIn = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(), parseInt(exp[0]), parseInt(exp[1]||0));
-                            let lateCut = new Date(xIn.getTime() + (emp.allowanceIn||0)*60000);
-                            if(iT >= new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(), 11, 0)) s.st='P/A';
-                            else if(iT > lateCut) s.st='L'; else s.st='P';
-                        } else s.st='P';
-                    }
-                } else if(p.In || p.Out) s.st='P/A';
+                        let iT = new Date(p.In.timestamp), oT = new Date(p.Out.timestamp);
+                        if((oT-iT)/3600000 < 4) s.st='A';
+                        else {
+                            let exp = emp.startTime?emp.startTime.split(':'):null;
+                            if(exp && exp[0]) {
+                                let xIn = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(), parseInt(exp[0]), parseInt(exp[1]||0));
+                                let lateCut = new Date(xIn.getTime() + (emp.allowanceIn||0)*60000);
+                                if(iT >= new Date(dt.getFullYear(), dt.getMonth(), dt.getDate(), 11, 0)) s.st='P/A';
+                                else if(iT > lateCut) s.st='L'; else s.st='P';
+                            } else s.st='P';
+                        }
+                    } else if(p.In || p.Out) s.st='P/A';
+                }
+
+                if(dt.getDay() === woDay) { 
+                    totalWODays++;
+                    if(s.st==='A') s.st='W/O'; else if(s.st==='P') sum.OT+=1; else if(s.st==='P/A' || s.st==='L') sum.OT+=0.5; 
+                }
+
+                if(s.st==='P') sum.P++; else if(s.st==='P/A') sum.PA++; else if(s.st==='A') sum.A++; else if(s.st==='L') sum.L++;
+                statuses.push(s);
             }
-            if(dt.getDay() === 6) { if(s.st==='A') s.st='W/O'; else if(s.st==='P') sum.OT+=1; else if(s.st==='P/A' || s.st==='L') sum.OT+=0.5; }
-            if(s.st==='P') sum.P++; else if(s.st==='P/A') sum.PA++; else if(s.st==='A') sum.A++; else if(s.st==='L') sum.L++;
-            statuses.push(s);
-        }
-        sum.Tot = sum.P + (sum.PA*0.5) + sum.OT + sum.L;
-            sum.Net = sum.Tot - (Math.floor(sum.L/3)*0.5); 
-            return {statuses, sum, emp};
+            
+            let absents = sum.A;
+            let presents = sum.P + sum.PA + sum.L; 
+            
+            if (presents <= 5) sum.WO = 0;
+            else if (absents >= 20) sum.WO = 1;
+            else if (absents >= 14) sum.WO = 2;
+            else if (absents >= 7) sum.WO = Math.max(0, totalWODays - 1);
+            else sum.WO = totalWODays;
+            
+            sum.Tot = sum.P + (sum.PA*0.5) + sum.OT + sum.L + sum.WO;
+            let lateDed = Math.floor(sum.L/3)*0.5;
+            sum.Net = sum.Tot - lateDed; 
+            
+            return {statuses, sum, emp, lateDed};
         }
 
         window.showRemark = (txt) => { document.getElementById('remark-modal-text').innerText = txt; document.getElementById('remark-modal').classList.remove('hidden'); document.getElementById('remark-modal').classList.add('flex'); };
         
-        function renderReportUI(data, headId, contId, isAdmin) {
+        function renderReportUI(data, headId, contId, isAdminMode) {
             document.getElementById(headId).innerHTML = `<strong>${data.emp.name || 'N/A'}</strong> | Shift: ${data.emp.startTime||'00:00'} to ${data.emp.endTime||'00:00'}`;
             document.getElementById(headId).classList.remove('hidden');
+            
+            document.getElementById('sum-tot').innerText = data.sum.Tot;
+            document.getElementById('sum-p').innerText = data.sum.P;
+            document.getElementById('sum-pa').innerText = data.sum.PA;
+            document.getElementById('sum-a').innerText = data.sum.A;
+            document.getElementById('sum-l').innerText = data.sum.L;
+            document.getElementById('sum-wo').innerText = data.sum.WO;
+            document.getElementById('sum-ld').innerText = data.lateDed;
+            document.getElementById('sum-net').innerText = data.sum.Net;
+            document.getElementById('report-summary-box').classList.remove('hidden');
+
             let h = `<table class="report-table"><thead><tr><th>Date</th><th>In</th><th>Out</th><th>Status</th><th>Remark</th></tr></thead><tbody>`;
             data.statuses.forEach(d => {
                 let cls='status-WO'; if(d.st==='P') cls='status-P'; else if(d.st==='A') cls='status-A'; else if(d.st==='P/A') cls='status-PA'; else if(d.st==='L') cls='status-L';
                 let inf = d.rem ? `<button onclick="window.showRemark('${d.rem.replace(/'/g,"\\'")}')" class="bg-gray-200 text-gray-800 rounded-full w-6 h-6 font-bold text-xs hover:bg-gray-300">i</button>` : '-';
                 h+=`<tr><td>${d.date.split('-').reverse().join('/')}</td><td class="font-mono text-xs">${d.in}</td><td class="font-mono text-xs">${d.out}</td><td class="${cls}">${d.st}</td><td>${inf}</td></tr>`;
             });
-            h+= `<tr><td colspan="3" class="text-right font-bold bg-gray-50">Net Days:</td><td colspan="2" class="font-bold bg-[#dcfce7] text-[#166534]">${data.sum.Net}</td></tr></tbody></table>`;
+            h+= `</tbody></table>`;
             document.getElementById(contId).innerHTML = h;
+        }
+
+        async function fetchMyReport() {
+            const sd = document.getElementById('startDate').value, ed = document.getElementById('endDate').value;
+            if(!sd || !ed) return;
+            document.getElementById('btn-text').style.display='none'; document.getElementById('btn-loader').style.display='block';
+            try {
+                const empId = isAdmin ? document.getElementById('repEmpSelect').value : currentEmployee.id;
+                const empDat = isAdmin ? allEmployeesData[empId] : currentEmployee;
+                
+                const snap = await get(ref(database, `attendance/${empId}`));
+                const data = calculateReport(empDat, snap.exists()?snap.val():{}, sd, ed);
+                renderReportUI(data, 'duty-timings', 'report-container', isAdmin);
+            } catch(e) { console.error(e); } finally { document.getElementById('btn-text').style.display='block'; document.getElementById('btn-loader').style.display='none'; }
         }
 
         async function fetchAdminReport() {
             const empId = document.getElementById('repEmpSelect').value;
-            const sd = document.getElementById('adminStart').value, ed = document.getElementById('adminEnd').value;
-            if(!empId || !sd || !ed) return showMessage("Please fill all fields.", "error");
+            if(!empId) return showMessage("Please select employee.", "error");
             
-            showLoader("Fetching Report...");
-            try {
-                const snap = await get(ref(database, `attendance/${empId}`));
-                const data = calculateReport(allEmployeesData[empId], snap.exists()?snap.val():{}, sd, ed);
-                renderReportUI(data, 'admin-rep-container', 'admin-rep-container', true); 
-            } catch(e) { showMessage("Error fetching report", "error"); } finally { hideLoader(); }
+            document.getElementById('startDate').value = document.getElementById('adminStart').value;
+            document.getElementById('endDate').value = document.getElementById('adminEnd').value;
+            document.getElementById('emp-report-controls').classList.add('hidden');
+            showView('report-section', 'Employee Report');
+            fetchMyReport();
         }
 
         async function generateGrid() {
@@ -675,12 +814,26 @@
                 const daysInMonth = endDate.getDate();
                 let headHtml = `<tr><th class="sticky-col-1">ID</th><th class="sticky-col-2">Name</th>`;
                 for(let i=1; i<=daysInMonth; i++) headHtml += `<th class="bg-gray-50">${i}</th>`;
-                headHtml += `<th class="bg-indigo-100">Tot</th><th class="bg-green-100">Net</th></tr>`;
+                
+                headHtml += `
+                    <th class="bg-green-50 text-green-700 font-extrabold px-3">P</th>
+                    <th class="bg-blue-50 text-blue-700 font-extrabold px-3">P/A</th>
+                    <th class="bg-red-50 text-red-700 font-extrabold px-3">A</th>
+                    <th class="bg-yellow-50 text-yellow-700 font-extrabold px-3">L</th>
+                    <th class="bg-gray-100 text-gray-600 font-extrabold px-3">W/O</th>
+                    <th class="bg-indigo-50 font-extrabold px-3">Tot</th>
+                    <th class="bg-orange-50 text-orange-700 font-extrabold px-3">L.D</th>
+                    <th class="bg-emerald-100 text-emerald-900 font-black px-4 border-l-2 border-emerald-300">Net</th>
+                </tr>`;
                 thead.innerHTML = headHtml;
 
                 let bodyHtml = '';
                 Object.entries(allEmployeesData).forEach(([id, emp]) => {
                     const empPunches = allPunches[id] || {};
+                    // Inactive filter with zero punches logic
+                    if ((emp.status === 'inactive' || emp.status === 'Inactive') && Object.keys(empPunches).length === 0) {
+                        return;
+                    }
                     const report = calculateReport(emp, empPunches, startStr, endStr);
 
                     let rowHtml = `<tr><td class="sticky-col-1 font-bold text-gray-700">${id}</td><td class="sticky-col-2 text-left font-medium">${emp.name || 'Unknown'}</td>`;
@@ -693,13 +846,23 @@
                         else if(day.st === 'W/O') cellClass += 'bg-gray-100 text-gray-400';
                         rowHtml += `<td class="${cellClass}">${day.st}</td>`;
                     });
-                    rowHtml += `<td class="bg-indigo-50 font-bold">${report.sum.Tot}</td><td class="bg-green-100 text-green-800 font-extrabold">${report.sum.Net}</td></tr>`;
+                    
+                    rowHtml += `
+                        <td class="bg-green-50 text-green-800 font-bold">${report.sum.P}</td>
+                        <td class="bg-blue-50 text-blue-800 font-bold">${report.sum.PA}</td>
+                        <td class="bg-red-50 text-red-800 font-bold">${report.sum.A}</td>
+                        <td class="bg-yellow-50 text-yellow-800 font-bold">${report.sum.L}</td>
+                        <td class="bg-gray-100 text-gray-600 font-bold">${report.sum.WO}</td>
+                        <td class="bg-indigo-50 text-indigo-900 font-extrabold">${report.sum.Tot}</td>
+                        <td class="bg-orange-50 text-orange-700 font-bold">${report.lateDed}</td>
+                        <td class="bg-emerald-100 text-emerald-900 font-black border-l-2 border-emerald-300">${report.sum.Net}</td>
+                    </tr>`;
                     bodyHtml += rowHtml;
                 });
 
                 tbody.innerHTML = bodyHtml;
                 document.getElementById('grid-container').classList.remove('hidden');
-            } catch(e) { showMessage('Error generating grid.', 'error'); console.error(e); }
+            } catch(e) { showMessage('Error generating grid.', 'error'); }
             finally { hideLoader(); }
         }
 
@@ -710,8 +873,8 @@
             const outTime = document.getElementById('manualOut').value;
             const remark = document.getElementById('manualRemark').value.trim();
 
-            if(!empId || !date) return showMessage('Employee and Date are required.', 'error');
-            if(!inTime && !outTime) return showMessage('Please provide In Time or Out Time.', 'error');
+            if(!empId || !date) return showMessage('Employee and Date required.', 'error');
+            if(!inTime && !outTime) return showMessage('Provide In or Out time.', 'error');
 
             showLoader('Saving Manual Punch...');
             try {
@@ -725,9 +888,9 @@
                     updates[`attendance/${empId}/${date}/Out`] = { timestamp: ts, address: "Manual Entry by Admin", remark: remark || "Manual Punch", location: "Admin Setup", department: "Admin Setup", latitude: "N/A", longitude: "N/A", photoUrl: "N/A" };
                 }
                 await update(ref(database), updates);
-                showMessage('Manual Punch Saved Successfully!', 'success');
+                showMessage('Manual Punch Saved!', 'success');
                 document.getElementById('manualIn').value = ''; document.getElementById('manualOut').value = ''; document.getElementById('manualRemark').value = '';
-            } catch(e) { showMessage('Error saving manual punch.', 'error'); } finally { hideLoader(); }
+            } catch(e) { showMessage('Error saving punch.', 'error'); } finally { hideLoader(); }
         }
 
         async function runFraudCheck() {
@@ -749,40 +912,92 @@
                             if (allPunches[empId][checkDate][type]) {
                                 let p = allPunches[empId][checkDate][type];
                                 let addr = (p.address || "").toLowerCase();
-                                // Suspicious logic: if it doesn't contain shikar pur, devpuri, or hans
                                 if (!addr.includes('shikar pur') && !addr.includes('shikarpur') && !addr.includes('devpuri') && !addr.includes('hans') && addr !== 'manual entry by admin') {
                                     susCount++;
                                     let timeStr = new Date(p.timestamp).toLocaleTimeString();
-                                    html += `<tr>
-                                        <td class="font-bold">${empId}</td>
-                                        <td>${type}</td>
-                                        <td>${timeStr}</td>
-                                        <td class="text-xs text-left max-w-xs truncate" title="${p.address}">
-                                            ${p.address} <br>
-                                            <a href="${p.photoUrl}" target="_blank" class="text-blue-600 underline">View Photo</a>
-                                        </td>
-                                    </tr>`;
+                                    html += `<tr><td class="font-bold">${empId}</td><td>${type}</td><td>${timeStr}</td><td class="text-xs text-left max-w-xs truncate" title="${p.address}">${p.address} <br><a href="${p.photoUrl}" target="_blank" class="text-blue-600 underline">View Photo</a></td></tr>`;
                                 }
                             }
                         });
                     }
                 });
                 
-                if(susCount === 0) html = `<tr><td colspan="4" class="text-center text-green-600 py-4 font-bold">No suspicious punches found for this date. All clear!</td></tr>`;
-                
+                if(susCount === 0) html = `<tr><td colspan="4" class="text-center text-green-600 py-4 font-bold">No suspicious punches found. All clear!</td></tr>`;
                 tbody.innerHTML = html;
                 document.getElementById('fraud-container').classList.remove('hidden');
                 showMessage(`Found ${susCount} suspicious punches.`, 'info');
-            } catch(e) { console.error(e); showMessage('Error in Fraud check', 'error'); } finally { hideLoader(); }
+            } catch(e) { showMessage('Error in Fraud check', 'error'); } finally { hideLoader(); }
         }
 
-        // Login & System buttons
+        function renderEmpDirectory() {
+            const tbody = document.getElementById('empdirBody');
+            const filter = document.getElementById('empDirStatusFilter').value;
+            let html = '';
+            Object.entries(allEmployeesData).forEach(([id, emp]) => {
+                let stat = emp.status ? emp.status.toLowerCase() : 'active';
+                if(filter !== 'all' && stat !== filter) return;
+                
+                let badge = stat === 'active' 
+                    ? `<span class="bg-green-100 text-green-700 px-2 py-0.5 rounded font-bold text-[10px] uppercase">Active</span>` 
+                    : `<span class="bg-red-100 text-red-700 px-2 py-0.5 rounded font-bold text-[10px] uppercase">Inactive</span>`;
+                    
+                html += `<tr>
+                    <td class="font-bold text-gray-700">${id}</td>
+                    <td class="font-bold">${emp.name || 'N/A'}</td>
+                    <td>${emp.department || '-'}</td>
+                    <td>${emp.location || '-'}</td>
+                    <td class="font-mono text-xs">${emp.startTime||'00:00'} - ${emp.endTime||'00:00'}</td>
+                    <td>${badge}</td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function renderSettingsUI() {
+            document.getElementById('autoShowMsgToggle').checked = globalSettings.autoShowMsg;
+            const depts = [...new Set(Object.values(allEmployeesData).map(e => e.department).filter(Boolean))];
+            
+            let html = '';
+            const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            depts.forEach(d => {
+                let currentWO = globalSettings.deptWeekOffs[d] !== undefined ? globalSettings.deptWeekOffs[d] : 6;
+                let opts = days.map((day, idx) => `<option value="${idx}" ${currentWO == idx ? 'selected' : ''}>${day}</option>`).join('');
+                html += `<div class="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-200">
+                            <span class="font-bold text-sm text-gray-700">${d}</span>
+                            <select class="dept-wo-select p-2 border border-gray-300 rounded-lg text-sm bg-white font-medium outline-none" data-dept="${d}">${opts}</select>
+                         </div>`;
+            });
+            document.getElementById('dept-wo-container').innerHTML = html;
+        }
+
+        document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
+            showLoader("Saving settings...");
+            try {
+                let newSettings = { 
+                    autoShowMsg: document.getElementById('autoShowMsgToggle').checked,
+                    deptWeekOffs: {}
+                };
+                document.querySelectorAll('.dept-wo-select').forEach(sel => {
+                    newSettings.deptWeekOffs[sel.getAttribute('data-dept')] = parseInt(sel.value);
+                });
+                
+                await set(ref(database, 'settings'), newSettings);
+                globalSettings = newSettings;
+                showMessage("Settings Saved Successfully!", "success");
+            } catch(e) { showMessage("Error saving settings.", "error"); } finally { hideLoader(); }
+        });
+
+        // Buttons
         document.getElementById('verifyLoginBtn').addEventListener('click', verifyLogin);
         document.getElementById('btn-logout').addEventListener('click', () => { currentEmployee = null; isAdmin = false; document.getElementById('employeeId').value=''; document.getElementById('employeePin').value=''; stopCamera(); showView('login-section'); });
         
-        // Employee Dash buttons
+        // Dashboard
         document.getElementById('view-msg-btn').addEventListener('click', () => { document.getElementById('msg-modal').classList.remove('hidden'); document.getElementById('msg-modal').classList.add('flex'); });
-        document.getElementById('openReportDirectBtn').addEventListener('click', () => { showView('report-section', 'My Attendance'); fetchMyReport(); });
+        document.getElementById('openReportDirectBtn').addEventListener('click', () => { 
+            document.getElementById('emp-report-controls').classList.remove('hidden');
+            showView('report-section', 'My Attendance'); 
+            fetchMyReport(); 
+        });
         
         // OTP Logic
         document.getElementById('showForgotBtn').addEventListener('click', () => showView('forgot-pin-section', 'Reset Password (PIN)'));
@@ -819,23 +1034,25 @@
         document.getElementById('startLocationTrackingBtn').addEventListener('click', startLocationTracking);
         document.getElementById('captureSubmitBtn').addEventListener('click', handlePunch);
         
-        // Report logic
-        document.getElementById('backToDashBtn').addEventListener('click', () => showView('employee-dashboard', 'Employee Dashboard'));
+        // Report Logic
         document.getElementById('fetchMyReportBtn').addEventListener('click', fetchMyReport);
         document.getElementById('syncOfflineBtn').addEventListener('click', syncOfflineData);
+        document.querySelectorAll('.back-to-dash-btn').forEach(btn => btn.addEventListener('click', () => showView(isAdmin ? 'admin-dashboard' : 'employee-dashboard')));
         
         // Modal Closers
         document.querySelectorAll('.close-modal-btn').forEach(btn => btn.addEventListener('click', window.closeModals));
         
-        // Admin Navigation Listeners
+        // Admin Navigation Safe attachment
         document.getElementById('admin-btn-reports').addEventListener('click', () => showView('admin-reports-view', 'Individual Reports'));
         document.getElementById('admin-btn-grid').addEventListener('click', () => showView('admin-master-grid-view', 'Monthly Master Grid'));
         document.getElementById('admin-btn-manual').addEventListener('click', () => showView('admin-manual-view', 'Manual Punch'));
         document.getElementById('admin-btn-fraud').addEventListener('click', () => showView('admin-fraud-view', 'Fraud Check'));
+        document.getElementById('admin-btn-empdir').addEventListener('click', () => { renderEmpDirectory(); showView('admin-empdir-view', 'Employee Directory'); });
+        document.getElementById('empDirStatusFilter').addEventListener('change', renderEmpDirectory);
+        document.getElementById('admin-btn-settings').addEventListener('click', () => { renderSettingsUI(); showView('admin-settings-view', 'System Settings'); });
+        document.querySelectorAll('.admin-back-btn').forEach(btn => btn.addEventListener('click', () => { document.getElementById('report-summary-box').classList.add('hidden'); showView('admin-dashboard', 'Admin Portal'); }));
         
-        document.querySelectorAll('.admin-back-btn').forEach(btn => btn.addEventListener('click', () => showView('admin-dashboard', 'Admin Portal')));
-        
-        // Admin Execution Listeners
+        // Admin Executions
         document.getElementById('fetchAdminReportBtn').addEventListener('click', fetchAdminReport);
         document.getElementById('generateGridBtn').addEventListener('click', generateGrid);
         document.getElementById('submitManualPunchBtn').addEventListener('click', submitManualPunch);
