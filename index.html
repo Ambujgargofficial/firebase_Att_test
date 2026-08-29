@@ -353,6 +353,20 @@
                     </div>
                 </div>
 
+                <div class="border-b pb-4">
+                    <h3 class="font-bold text-gray-800 mb-2">Message Source</h3>
+                    <p class="text-xs text-gray-500 mb-3">Chunein ki employees ko kiska message dikhega.</p>
+                    <select id="msgSourceSelect" class="w-full p-2.5 border border-gray-300 rounded-xl bg-gray-50 text-sm font-bold outline-none mb-3">
+                        <option value="sheet">Column O (Individual Employee Message)</option>
+                        <option value="global">Global Custom Message (Sabke liye ek)</option>
+                    </select>
+                    
+                    <div id="globalMsgContainer" class="hidden">
+                        <label class="block text-xs font-bold text-gray-700 mb-1">Type Global Message</label>
+                        <textarea id="globalMsgText" rows="3" placeholder="Yahan sabhi employees ke liye common message type karein..." class="w-full p-3 border border-gray-300 rounded-xl bg-gray-50 text-sm font-medium outline-none resize-none"></textarea>
+                    </div>
+                </div>
+
                 <!-- Dept Week Off Config -->
                 <div>
                     <h3 class="font-bold text-gray-800 mb-2">Department Weekly Off Days</h3>
@@ -418,7 +432,7 @@
         let isAdmin = false;
         let currentStream, gpsWatchId, currentCoordinates, currentPunchTarget;
         let allEmployeesData = {};
-        let globalSettings = { autoShowMsg: false, deptWeekOffs: {} };
+        let globalSettings = { autoShowMsg: false, deptWeekOffs: {}, msgSource: 'sheet', globalMsgText: '' };
 
         // DOM Elements setup on load
         const tdStr = new Date().toISOString().split('T')[0];
@@ -483,6 +497,8 @@
                     let st = setSnap.val();
                     globalSettings.autoShowMsg = st.autoShowMsg || false;
                     globalSettings.deptWeekOffs = st.deptWeekOffs || {};
+                    globalSettings.msgSource = st.msgSource || 'sheet';
+                    globalSettings.globalMsgText = st.globalMsgText || '';
                 }
                 
                 // Populate Dropdowns
@@ -538,15 +554,28 @@
             document.getElementById('emp-name-dash').textContent = currentEmployee.name;
             document.getElementById('emp-details-dash').textContent = `ID: ${currentEmployee.id} | ${currentEmployee.department || ''} | ${currentEmployee.location || ''}`;
             
-            // MSG Logic
             const msgBtn = document.getElementById('view-msg-btn');
             let hasMsg = false;
-            if (currentEmployee.msg && currentEmployee.msg.text) {
-                document.getElementById('msg-modal-text').innerText = currentEmployee.msg.text;
-                document.getElementById('msg-modal-time').innerText = currentEmployee.msg.lastUpdated || "";
-                msgBtn.classList.remove('hidden');
+            let textToDisplay = "";
+            let timeToDisplay = "";
+
+            if (globalSettings.msgSource === 'global' && globalSettings.globalMsgText) {
+                textToDisplay = globalSettings.globalMsgText;
+                timeToDisplay = "Global Update by Mr. Ambuj";
                 hasMsg = true;
-            } else { msgBtn.classList.add('hidden'); }
+            } else if (globalSettings.msgSource === 'sheet' && currentEmployee.msg && currentEmployee.msg.text) {
+                textToDisplay = currentEmployee.msg.text;
+                timeToDisplay = currentEmployee.msg.lastUpdated || "";
+                hasMsg = true;
+            }
+
+            if (hasMsg) {
+                document.getElementById('msg-modal-text').innerText = textToDisplay;
+                document.getElementById('msg-modal-time').innerText = timeToDisplay;
+                msgBtn.classList.remove('hidden');
+            } else { 
+                msgBtn.classList.add('hidden'); 
+            }
 
             const today = new Date().toISOString().split('T')[0];
             const punchSnap = await get(ref(database, `attendance/${currentEmployee.id}/${today}`));
@@ -955,6 +984,18 @@
 
         function renderSettingsUI() {
             document.getElementById('autoShowMsgToggle').checked = globalSettings.autoShowMsg;
+            
+            document.getElementById('msgSourceSelect').value = globalSettings.msgSource;
+            document.getElementById('globalMsgText').value = globalSettings.globalMsgText;
+            const gContainer = document.getElementById('globalMsgContainer');
+            if(globalSettings.msgSource === 'global') gContainer.classList.remove('hidden');
+            else gContainer.classList.add('hidden');
+            
+            document.getElementById('msgSourceSelect').onchange = (e) => {
+                if(e.target.value === 'global') gContainer.classList.remove('hidden');
+                else gContainer.classList.add('hidden');
+            };
+
             const depts = [...new Set(Object.values(allEmployeesData).map(e => e.department).filter(Boolean))];
             
             let html = '';
@@ -975,6 +1016,8 @@
             try {
                 let newSettings = { 
                     autoShowMsg: document.getElementById('autoShowMsgToggle').checked,
+                    msgSource: document.getElementById('msgSourceSelect').value,
+                    globalMsgText: document.getElementById('globalMsgText').value.trim(),
                     deptWeekOffs: {}
                 };
                 document.querySelectorAll('.dept-wo-select').forEach(sel => {
